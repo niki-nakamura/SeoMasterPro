@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, vector } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -40,13 +40,12 @@ export const scrapedUrls = pgTable("scraped_urls", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Vector embeddings for semantic search (optional for future use)
-// Note: Removed vector column for compatibility - can be added later with pgvector extension
+// Vector embeddings for semantic search
 export const contentVectors = pgTable("content_vectors", {
   id: serial("id").primaryKey(),
   articleId: integer("article_id").notNull().references(() => articles.id),
   contentChunk: text("content_chunk").notNull(),
-  // embedding: vector("embedding", { dimensions: 1536 }), // Disabled until pgvector is enabled
+  embedding: vector("embedding", { dimensions: 768 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

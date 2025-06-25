@@ -102,6 +102,10 @@ The application implements a 5-step content generation process:
   ✓ OpenAI API key configured
   ✓ All 5 workflow steps implemented
   ✓ Full-stack application ready for testing
+- June 25, 2025: Vector search capability added
+  ✓ pgvector extension enabled
+  ✓ contentVectors table updated with 768-dimension embeddings
+  ✓ Database migration completed successfully
 
 ## User Preferences
 
