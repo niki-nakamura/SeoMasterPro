@@ -3,11 +3,13 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppHeader } from "@/components/layout/app-header";
 import { Sidebar } from "@/components/layout/sidebar";
 import Dashboard from "@/pages/dashboard";
 import ContentGenerator from "@/pages/content-generator";
 import Articles from "@/pages/articles";
+import MyArticles from "@/pages/my-articles";
 import NotFound from "@/pages/not-found";
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -30,6 +32,7 @@ function Router() {
       <Route path="/" component={() => <AppLayout><Dashboard /></AppLayout>} />
       <Route path="/content-generator" component={ContentGenerator} />
       <Route path="/content-generator/:id" component={ContentGenerator} />
+      <Route path="/my-articles" component={() => <AppLayout><MyArticles /></AppLayout>} />
       <Route path="/articles" component={() => <AppLayout><Articles /></AppLayout>} />
       <Route path="/analytics" component={() => <AppLayout><div>Analytics coming soon...</div></AppLayout>} />
       <Route path="/settings" component={() => <AppLayout><div>Settings coming soon...</div></AppLayout>} />
@@ -41,10 +44,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <ProtectedRoute>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </ProtectedRoute>
     </QueryClientProvider>
   );
 }

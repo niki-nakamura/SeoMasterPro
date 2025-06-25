@@ -20,6 +20,7 @@ import {
   generateSectionContent,
   generateMetaTags
 } from "./services/openai";
+import { generateWithOllama, type OllamaRequest } from "./services/ollama";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
