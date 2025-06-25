@@ -40,6 +40,15 @@ export const scrapedUrls = pgTable("scraped_urls", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Raw articles table for storing scraped HTML content
+export const articlesRaw = pgTable("articles_raw", {
+  id: serial("id").primaryKey(),
+  url: text("url").notNull().unique(),
+  title: text("title").notNull(),
+  html: text("html").notNull(),
+  fetchedAt: timestamp("fetched_at").notNull().defaultNow(),
+});
+
 // Vector embeddings for semantic search
 export const contentVectors = pgTable("content_vectors", {
   id: serial("id").primaryKey(),
@@ -60,12 +69,19 @@ export const insertScrapedUrlSchema = createInsertSchema(scrapedUrls).omit({
   createdAt: true,
 });
 
+export const insertArticlesRawSchema = createInsertSchema(articlesRaw).omit({
+  id: true,
+  fetchedAt: true,
+});
+
 export const updateArticleSchema = insertArticleSchema.partial();
 
 export type InsertArticle = z.infer<typeof insertArticleSchema>;
 export type Article = typeof articles.$inferSelect;
 export type InsertScrapedUrl = z.infer<typeof insertScrapedUrlSchema>;
 export type ScrapedUrl = typeof scrapedUrls.$inferSelect;
+export type InsertArticlesRaw = z.infer<typeof insertArticlesRawSchema>;
+export type ArticlesRaw = typeof articlesRaw.$inferSelect;
 
 // Workflow step schemas
 export const scrapeRequestSchema = z.object({

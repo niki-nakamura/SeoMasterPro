@@ -106,6 +106,12 @@ The application implements a 5-step content generation process:
   ✓ pgvector extension enabled
   ✓ contentVectors table updated with 768-dimension embeddings
   ✓ Database migration completed successfully
+- June 25, 2025: Advanced scraping system implemented
+  ✓ /api/scrape endpoint with Cheerio-based HTTP scraping
+  ✓ articles_raw table for storing complete HTML content
+  ✓ DuckDuckGo search integration with 3-second delays
+  ✓ Random User-Agent rotation for reliable scraping
+  ✓ Error handling and duplicate URL prevention
 
 ## User Preferences
 

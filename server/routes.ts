@@ -8,8 +8,11 @@ import {
   personaRequestSchema,
   outlineRequestSchema,
   generateContentRequestSchema,
-  finalizeRequestSchema
+  finalizeRequestSchema,
+  articlesRaw
 } from "@shared/schema";
+import { db } from "./db";
+import { desc, eq } from "drizzle-orm";
 import { scrapeSearchResults } from "./services/scraper";
 import { 
   generatePersonaAndIntent, 
@@ -76,18 +79,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Workflow Step 1: Scrape
+  // Workflow Step 1: Scrape - Enhanced with database storage
   app.post("/api/scrape", async (req, res) => {
     try {
-      const { keyword, maxResults } = scrapeRequestSchema.parse(req.body);
+      const { keyword, maxResults = 8 } = scrapeRequestSchema.parse(req.body);
       
+      console.log(`Starting scraping for keyword: ${keyword}`);
       const scrapedResults = await scrapeSearchResults(keyword, maxResults);
       
       res.json({
         results: scrapedResults,
-        count: scrapedResults.length
+        count: scrapedResults.length,
+        message: `Successfully scraped ${scrapedResults.length} articles and saved to database`
       });
     } catch (error) {
+      console.error("Scraping error:", error);
       res.status(500).json({ 
         message: "Web scraping failed", 
         error: (error as Error).message 
@@ -327,6 +333,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(savedUrls);
     } catch (error) {
       res.status(500).json({ message: "Failed to save scraped URLs" });
+    }
+  });
+
+  // Get raw articles from database
+  app.get("/api/articles-raw", async (req, res) => {
+    try {
+      const rawArticles = await db
+        .select()
+        .from(articlesRaw)
+        .orderBy(desc(articlesRaw.fetchedAt))
+        .limit(50);
+      
+      res.json(rawArticles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch raw articles" });
+    }
+  });
+
+  // Get specific raw article by URL
+  app.get("/api/articles-raw/by-url", async (req, res) => {
+    try {
+      const { url } = req.query;
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ message: "URL parameter is required" });
+      }
+
+      const rawArticle = await db
+        .select()
+        .from(articlesRaw)
+        .where(eq(articlesRaw.url, url))
+        .limit(1);
+
+      if (rawArticle.length === 0) {
+        return res.status(404).json({ message: "Article not found" });
+      }
+
+      res.json(rawArticle[0]);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch raw article" });
     }
   });
 
