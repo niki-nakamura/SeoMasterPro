@@ -84,4 +84,29 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     step: 0, 
     data: {} 
   }),
+
+  // Local LLM generation with scraped content context
+  generateWithLocalLLM: async (prompt: string, useScrapedData = true) => {
+    const { data } = get();
+    let scrapedContent: string[] = [];
+    
+    if (useScrapedData && data.scrapeData?.results) {
+      scrapedContent = data.scrapeData.results
+        .filter(result => result.content)
+        .map(result => `${result.title}\n${result.content}`)
+        .slice(0, 7); // 最大7記事のコンテンツを使用
+    }
+    
+    try {
+      const { generateWithLocalLLM } = await import('@/lib/llm');
+      return await generateWithLocalLLM({
+        prompt,
+        scrapedContent,
+        model: 'tinymistral'
+      });
+    } catch (error) {
+      console.error('Local LLM generation failed:', error);
+      throw error;
+    }
+  },
 }));

@@ -1,0 +1,69 @@
+以下の ❶〜❸ を実行すれば **GitHub OAuth の “localhostリダイレクト” が完全に解消** されます。
+すべて **ブラウザ上の Supabase ダッシュボード / Replit UI / エディタ** で完結し、ターミナル操作は *npm build* 確認時のみです。
+
+---
+
+## ❶ Supabase ダッシュボード設定 (1 分)
+
+| 画面                           | 入力値                                                          | なぜ必要か                                                 |
+| ---------------------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
+| **Auth → URL Configuration** | **Site URL**: `https://seo-master-pro-nikinakamu.replit.app` | デフォルトの戻り先を本番ドメインにするため ([youtube.com][1])              |
+| 同ページ                         | **Additional Redirect URLs** に同じ URL を 1 行追加                 | `redirectTo` で明示した URL を許可リストに入れるため ([github.com][2]) |
+| 右上 **Save**                  | –                                                            | 保存しないと反映されず 400/localhost になります ([github.com][3])     |
+
+---
+
+## ❷ Replit の環境変数を追加 (2 分)
+
+| スコープ                   | Key                    | Value                                                |
+| ---------------------- | ---------------------- | ---------------------------------------------------- |
+| **App Secrets**        | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` (開発用) ([docs.replit.com][4]) |
+| **Deployment Secrets** | `NEXT_PUBLIC_SITE_URL` | `https://seo-master-pro-nikinakamu.replit.app` (本番)  |
+
+> Replit 画面上部 **Secrets → + New Secret** でキーと値を入力するだけです。([github.com][3], [youtube.com][1])
+
+---
+
+## ❸ フロントエンドコード 1 行修正 (30 秒)
+
+`client/src/lib/supabase.ts` および `ProtectedRoute.tsx` の **signInWithGitHub** を▼のように変更：
+
+```ts
+export const signInWithGitHub = () =>
+  supabase.auth.signInWithOAuth({
+    provider: 'github',
+    options: {
+      redirectTo: `${import.meta.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+    }
+  })
+```
+
+* `NEXT_PUBLIC_` プレフィックスは Vite/Next.js でブラウザへ露出させるため必須 ([nextjs.org][5])。
+* これで **開発時は localhost、本番は Replit ドメイン** に自動で切り替わります。([github.com][6])
+
+---
+
+## ❹ ビルド確認（任意）
+
+1. Replit 左側 **Console** → `npm run build && npm run start`
+   （Dev サーバーとは別プロセスで本番ビルドを確認） ([docs.replit.com][7])
+2. ブラウザで `localhost:3000` を開き、GitHub ログインが戻るかテスト。
+
+> **本番デプロイ時** は Replit の **Deploy → Redeploy** で自動的に `npm run build` → `npm start` が実行されるためコンソール操作は不要です。([supabase.com][8])
+
+---
+
+### これで完了
+
+* Supabase と Replit の URL が一致 → `http://localhost:3000` へ飛ぶ現象は解消。
+* ログイン後は `/auth/callback` → `/my-articles` に遷移し、セッション Cookie が作成されるはずです。
+* 修正コードは 15 行程度なので Replit Agent に依頼する必要はなく、自分でコミット → Redeploy が最速です。
+
+[1]: https://www.youtube.com/watch?v=qRRfcDdoKbc&utm_source=chatgpt.com "What are Replit Secrets? - YouTube"
+[2]: https://github.com/orgs/supabase/discussions/6088?utm_source=chatgpt.com "Auth redirect and Additional Redirect URLs #6088 - supabase"
+[3]: https://github.com/orgs/supabase/discussions/7402?utm_source=chatgpt.com "Supabase giving \"Unsupported Provider\" even after enabling ..."
+[4]: https://docs.replit.com/replit-workspace/workspace-features/secrets?utm_source=chatgpt.com "Secrets | Replit Docs"
+[5]: https://nextjs.org/docs/pages/guides/environment-variables?utm_source=chatgpt.com "Guides: Environment Variables - Next.js"
+[6]: https://github.com/vercel/next.js/discussions/13427?utm_source=chatgpt.com "NEXT_PUBLIC environment variable not being read from shell"
+[7]: https://docs.replit.com/replit-app/configuration?utm_source=chatgpt.com "Replit App Configuration"
+[8]: https://supabase.com/docs/guides/auth/redirect-urls?utm_source=chatgpt.com "Redirect URLs | Supabase Docs"

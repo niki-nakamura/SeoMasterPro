@@ -24,9 +24,13 @@ npm install
 DATABASE_URL=your_database_url
 OPENAI_API_KEY=your_openai_key
 
-# Optional (for production)
+# For Supabase authentication (production)
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# For OAuth redirect (development/production)
+VITE_SITE_URL=http://localhost:3000  # Development
+# VITE_SITE_URL=https://your-app.replit.app  # Production
 ```
 
 3. Start the development server:
@@ -114,10 +118,26 @@ npx pythagora
 ```
 
 ### Deployment
-1. Add secrets in Replit UI:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-2. Click Deploy in Replit interface
+
+### Supabase Configuration
+1. Go to Supabase Dashboard → Auth → URL Configuration
+2. Set **Site URL**: `https://your-app.replit.app`
+3. Add **Additional Redirect URLs**: same URL
+4. Save settings
+
+### Replit Secrets
+Add the following in Replit UI (Secrets):
+
+**App Secrets** (Development):
+- `VITE_SITE_URL`: `http://localhost:3000`
+
+**Deployment Secrets** (Production):
+- `VITE_SUPABASE_URL`: Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY`: Your Supabase anonymous key  
+- `VITE_SITE_URL`: `https://your-app.replit.app`
+
+### Deploy
+Click **Deploy** in Replit interface
 
 ## Workflow Steps
 
