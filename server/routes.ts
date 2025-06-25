@@ -375,6 +375,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Ollama LLM Proxy
+  app.post("/proxy/llm", async (req, res) => {
+    try {
+      const { prompt, model } = req.body as OllamaRequest;
+      
+      if (!prompt) {
+        return res.status(400).json({ message: "Prompt is required" });
+      }
+
+      const result = await generateWithOllama({ prompt, model });
+      res.json(result);
+    } catch (error) {
+      console.error("Ollama proxy error:", error);
+      res.status(500).json({ 
+        message: "LLM generation failed", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
