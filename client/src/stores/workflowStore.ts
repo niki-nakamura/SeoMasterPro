@@ -41,6 +41,9 @@ export interface WorkflowState {
   nextStep: () => void;
   prevStep: () => void;
   resetWorkflow: () => void;
+  
+  // Local LLM Actions
+  generateWithLocalLLM: (prompt: string, useScrapedData?: boolean) => Promise<string>;
 }
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({

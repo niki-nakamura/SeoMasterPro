@@ -127,6 +127,13 @@ The application implements a 5-step content generation process:
   ✓ Database connection stable with articles saved
   ✓ Application running successfully on port 5000
   ✓ Ready for Supabase secrets configuration and deployment
+- June 25, 2025: Ollama Local LLM integration
+  ✓ Created client/src/lib/llm.ts for browser-direct Ollama communication
+  ✓ Added Settings page with LLM connection testing
+  ✓ Zustand store enhanced with local LLM generation methods
+  ✓ Context injection for scraped content (up to 7 articles)
+  ✓ README with complete Ollama setup instructions
+  ✓ Cost-optimized architecture: ~$1.4/month total hosting cost
 
 ## User Preferences
 

@@ -1,0 +1,119 @@
+以下では **①要点まとめ → ②Replit Agent へ渡す具体的インストラクション → ③エンドユーザ向け「ローカル Ollama 起動ガイド」** の順で整理しました。これを実行すれば **サーバー側コストをほぼゼロ** に抑えつつ、各ユーザ PC で高性能 LLM（例 Mistral-7B/TinyMistral）を走らせる構成が完成します。
+
+---
+
+## ① 要点まとめ
+
+* **Replit 本番コンテナ** は Docker を使えないため、Ollama を常駐させるには
+
+  * A) **Reserved VM**（\$20/月〜）で常駐 ([docs.replit.com][1], [replit.com][2])
+  * B) **各ユーザの PC でローカル起動**し、ブラウザ→`localhost:11434`に直アクセス
+    が現実的。今回は **B) ローカル方式** を採用。
+* Ollama は Windows／macOS／Linux 全てインストーラ or Homebrew 1 コマンドで導入可 ([ralgar.one][3], [formulae.brew.sh][4], [github.com][5])。
+* REST API は `POST /api/generate` で `{prompt}` を送り `{response}` を取得するだけ ([medium.com][6], [arsturn.com][7])。
+* CORS が有効なので **ブラウザから `http://localhost:11434` へ直接 fetch 可能**（追加設定不要）([stackoverflow.com][8])。
+* TinyMistral や Mistral-Small は 4–8 GB RAM で動き、コンテキスト長はデフォルト 4096 tokens ([ollama.com][9], [reddit.com][10])。
+
+---
+
+## ② Replit Agent への指示（コピペ可）
+
+```txt
+/* === Ollama LOCAL MODE 対応パッチ ===
+1. .env に OLLAMA_BASE_URL (default http://localhost:11434) を追加し
+   client/src/lib/llm.ts を作成:
+
+   export async function callOllama(prompt: string, model = 'tinymistral') {
+     const res = await fetch(`${process.env.OLLAMA_BASE_URL}/api/generate`, {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ model, prompt, stream: false })
+     });
+     if (!res.ok) throw new Error('Ollama error');
+     const json = await res.json();
+     return json.text as string;
+   }
+
+2. client/src/stores/step.ts 内の H2-WRITE / FINALIZE フェーズで
+   callOllama を呼び出すよう置換 (OpenAI fallback は try/catch で保持)。
+
+3. README に「ユーザーのローカルに Ollama を入れて起動する手順」を追記。
+4. client/src/pages/Settings.tsx に
+   ▶️「ローカル LLM が起動しているかテスト」ボタンを追加し、
+   callOllama('ping') が成功すれば緑チェックを表示。
+
+5. npm run test で新 API を録画し Pythagora 更新。
+=== */
+```
+
+これで **本番サーバー側では LLM を一切ホストせず**、フロントがローカルへ直アクセスする構造になります。
+
+---
+
+## ③ エンドユーザー向け「ローカル Ollama 起動ガイド」
+
+### 1. インストール
+
+| OS          | 手順                                                                  | 参考                      |             |
+| ----------- | ------------------------------------------------------------------- | ----------------------- | ----------- |
+| **macOS**   | `brew install ollama`                                               | ([formulae.brew.sh][4]) |             |
+| **Windows** | ダウンロードページから *OllamaSetup.exe* を実行                                   | ([ralgar.one][3])       |             |
+| **Linux**   | \`curl [https://ollama.ai/install.sh](https://ollama.ai/install.sh) | sh\`                    | (公式 README) |
+
+### 2. モデル取得 & 起動
+
+```bash
+ollama pull tinymistral      # 800 MB・最速モデル
+ollama serve                 # ポート 11434 で起動
+```
+
+> **Tip**: コンテキスト長や量子化情報は
+> `ollama show tinymistral` で確認できます（デフォ 4096 tokens）([reddit.com][10])。
+
+### 3. 動作テスト
+
+```bash
+curl http://localhost:11434/api/generate \
+     -d '{"model":"tinymistral","prompt":"こんにちは"}'
+```
+
+200 OK で JSON `{ "response": ... }` が返れば成功 ([medium.com][6])。
+
+### 4. ブラウザ側設定
+
+アプリの **Settings → 「ローカル LLM URL」** に
+`http://localhost:11434` を入力 → 「接続テスト」ボタンが緑になれば完了。
+
+---
+
+## ④ 今後のランニングコスト
+
+| 構成                          | Replit            | LLM  | DB  | 合計          |
+| --------------------------- | ----------------- | ---- | --- | ----------- |
+| **ローカル方式 (推奨)**             | Autoscale \$1.4/月 | \$0  | \$0 | **≈ \$1.4** |
+| Reserved VM 0.5 vCPU        | Autoscale \$0     | \$20 | \$0 | **≈ \$21**  |
+| GPT-3.5 fallback 1 M tokens | +\$0.5            | –    | –   | **+ \$0.5** |
+
+*ユーザ PC で Ollama を動かしてもらう限り、サーバーコストはほぼ基本料金のみ* ([medium.com][6])。
+
+---
+
+## ⑤ 次のステップまとめ
+
+1. **上記 Agent スニペット** を実行し、フロントをローカル LLM モード対応。
+2. README / On-boarding モーダルで **Ollama インストール手順** を表示。
+3. **コンテキスト注入ロジック**：`/api/scrape` 保存 → ベクトル検索 → 上位 7 チャンクを prompt に渡す。
+4. OpenAI Fallback を残しておき、ローカル LLM 不在時でも機能する二段構えに。
+
+これで **ユーザーに負担の少ないローカル LLM モード** が実現し、ホスティング費込みでも \$2/月前後で運用できます。 궁금点があればお知らせください！
+
+[1]: https://docs.replit.com/cloud-services/deployments/reserved-vm-deployments?utm_source=chatgpt.com "Reserved VM Deployments - Replit Docs"
+[2]: https://replit.com/pricing?utm_source=chatgpt.com "Pricing - Replit"
+[3]: https://www.ralgar.one/ollama-on-windows-a-beginners-guide/?utm_source=chatgpt.com "Ollama on Windows - A Beginner's Guide - Ralgar.one"
+[4]: https://formulae.brew.sh/formula/ollama?utm_source=chatgpt.com "ollama - Homebrew Formulae"
+[5]: https://github.com/ollama/ollama/blob/main/docs/windows.md?utm_source=chatgpt.com "ollama/docs/windows.md at main - GitHub"
+[6]: https://medium.com/%40shmilysyg/setup-rest-api-service-of-ai-by-using-local-llms-with-ollama-eb4b62c13b71?utm_source=chatgpt.com "Setup REST-API service of AI by using Local LLMs with Ollama"
+[7]: https://www.arsturn.com/blog/creating-a-rest-api-with-ollama?utm_source=chatgpt.com "Creating a REST API with Ollama - Arsturn"
+[8]: https://stackoverflow.com/questions/43871637/no-access-control-allow-origin-header-is-present-on-the-requested-resource-whe?utm_source=chatgpt.com "No 'Access-Control-Allow-Origin' header is present on the requested ..."
+[9]: https://ollama.com/library/mistral-small?utm_source=chatgpt.com "mistral-small - Ollama"
+[10]: https://www.reddit.com/r/LocalLLaMA/comments/1g7821k/in_ollama_how_can_i_see_what_the_context_size/?utm_source=chatgpt.com "In Ollama how can I see what the context size *really is* in ... - Reddit"
