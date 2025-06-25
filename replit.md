@@ -134,6 +134,12 @@ The application implements a 5-step content generation process:
   ✓ Context injection for scraped content (up to 7 articles)
   ✓ README with complete Ollama setup instructions
   ✓ Cost-optimized architecture: ~$1.4/month total hosting cost
+- June 25, 2025: GitHub OAuth and production deployment fixes
+  ✓ Fixed Supabase OAuth redirect with environment-specific URLs
+  ✓ Added /auth/callback route for proper OAuth flow
+  ✓ Environment variable VITE_SITE_URL for dev/production switching
+  ✓ Settings page route added to App.tsx
+  ✓ Ready for Supabase dashboard configuration and deployment
 
 ## User Preferences
 

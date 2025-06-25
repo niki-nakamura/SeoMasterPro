@@ -16,3 +16,12 @@ const createMockSupabaseClient = () => ({
 export const supabase = (supabaseUrl && supabaseAnonKey) 
   ? createBrowserClient(supabaseUrl, supabaseAnonKey)
   : createMockSupabaseClient();
+
+// GitHub OAuth with environment-specific redirect
+export const signInWithGitHub = () =>
+  supabase.auth.signInWithOAuth({
+    provider: 'github',
+    options: {
+      redirectTo: `${import.meta.env.VITE_SITE_URL || window.location.origin}/auth/callback`
+    }
+  });

@@ -1,0 +1,84 @@
+以下をやれば **GitHub OAuth が本番 URL に正しく戻り、`localhost` エラーも消えます**。手作業は ❶Supabase ダッシュボード、❷Replit の UI（Secrets と Console）、❸コード修正の３か所だけです。
+
+---
+
+## ❶ Supabase ダッシュボード
+
+1. **Auth → URL Configuration** を開く。
+2. **Site URL** と **Additional Redirect URLs** に
+
+   ```
+   https://seo-master-pro-nikinakamu.replit.app
+   ```
+
+   を入力して **Save**。これで Supabase が `localhost` へ戻さなくなる。([reddit.com][1])
+
+---
+
+## ❷ Replit 側
+
+### a. Secrets を追加
+
+| 場所                          | Key                    | Value                                          |
+| --------------------------- | ---------------------- | ---------------------------------------------- |
+| **App Secrets** (開発)        | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000`                        |
+| **Deployment Secrets** (本番) | `NEXT_PUBLIC_SITE_URL` | `https://seo-master-pro-nikinakamu.replit.app` |
+
+→ Replit 画面上部 **Secrets → + New Secret** で入力。([community.vercel.com][2])
+
+### b. `npm run build` / `npm run start` の実行場所
+
+* **開発中にテストしたいとき**
+
+  1. 左側ツールバー **Console** を開く。
+  2. `npm run build && npm run start` と打てば OK。([docs.replit.com][3])
+     （`Run` ボタンは通常 `npm run dev` を実行しているので、本番ビルド確認時だけ Console でコマンドを叩く）
+
+* **本番デプロイ**
+  Replit の **Deployments → Redeploy** を押せば、自動で `npm run build` → `npm start` を行うので手入力は不要です。([docs.replit.com][4])
+
+---
+
+## ❸ フロントコード修正（１か所）
+
+`client/src/lib/supabase.ts`
+
+```ts
+export const signInWithGitHub = () =>
+  supabase.auth.signInWithOAuth({
+    provider: 'github',
+    options: {
+      redirectTo: `${import.meta.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+    }
+  })
+```
+
+> これで **開発では localhost、本番では Replit ドメイン** に自動で切り替わります。([supabase.com][5])
+
+`ProtectedRoute.tsx` の `handleSignIn()` 内も同じ一行を差し替えておくと完璧です（`window.location.origin` → 上記と同じ式に変更）。([reddit.com][6])
+
+---
+
+## これで完了したら
+
+1. Replit プレビューを外部タブで開き（ポップアップブロックを避けるため）ログインテスト。
+2. 正しく `/auth/callback` → `/my-articles` に遷移することを確認。
+3. 問題がなければ **Redeploy**。
+
+---
+
+### まとめ
+
+* Supabase に本番 URL を登録
+* Replit Secrets に `NEXT_PUBLIC_SITE_URL` を追加
+* コードの `redirectTo` をその変数参照に統一
+* Console から `npm run build` テスト → Redeploy
+
+以上で `localhost refused to connect` は解消します。
+
+[1]: https://www.reddit.com/r/replit/comments/15th1f2/react_web_page_appears_in_npm_run_dev_but_not_npm/?utm_source=chatgpt.com "React: Web page appears in 'npm run dev' but not 'npm run build'"
+[2]: https://community.vercel.com/t/google-oauth-redirect-url-with-vercel-preview-urls-supabase/6345?utm_source=chatgpt.com "Google oAuth redirect URL with Vercel Preview URLs & Supabase"
+[3]: https://docs.replit.com/replit-workspace/workspace-features/console?utm_source=chatgpt.com "Console - Replit Docs"
+[4]: https://docs.replit.com/replit-app/configuration?utm_source=chatgpt.com "Replit App Configuration"
+[5]: https://supabase.com/docs/guides/auth/redirect-urls?utm_source=chatgpt.com "Redirect URLs | Supabase Docs"
+[6]: https://www.reddit.com/r/Supabase/comments/qaqo4s/auth_redirect_for_local_dev_production/?utm_source=chatgpt.com "Auth redirect for local dev + production? : r/Supabase - Reddit"
