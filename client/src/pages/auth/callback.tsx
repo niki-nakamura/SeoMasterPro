@@ -6,40 +6,45 @@ export default function AuthCallback() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
+    console.log('AuthCallback component mounted');
+    console.log('Current URL:', window.location.href);
+    console.log('Search params:', window.location.search);
+    
     const handleAuthCallback = async () => {
       try {
         // URLからパラメータ取得
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
+        console.log('Auth code from URL:', code);
         
         if (code) {
-          // Supabaseクライアントが利用可能な場合のみ処理
-          if (supabase && typeof supabase.auth.exchangeCodeForSession === 'function') {
-            // 認証コードをセッションに交換
-            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-            
-            if (error) {
-              console.error('Auth callback error:', error.message);
-              navigate('/');
-              return;
-            }
-            
-            if (data.session) {
-              console.log('Authentication successful');
-              // ダッシュボードに遷移
-              navigate('/');
-            }
+          console.log('Processing auth code with Supabase...');
+          // 認証コードをセッションに交換（モッククライアントでも実行）
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (error) {
+            console.error('Auth callback error:', error.message);
+            // エラーでもダッシュボードに遷移（開発用）
+            console.log('Redirecting to dashboard despite error (development mode)');
+            navigate('/');
+            return;
+          }
+          
+          if (data.session) {
+            console.log('Authentication successful');
+            navigate('/');
           } else {
-            console.log('Supabase not configured, redirecting to dashboard');
+            console.log('No session returned, redirecting to dashboard');
             navigate('/');
           }
         } else {
           console.error('No auth code found in URL');
-          navigate('/');
+          // 3秒後にリダイレクト
+          setTimeout(() => navigate('/'), 3000);
         }
       } catch (error) {
         console.error('Auth callback failed:', error);
-        navigate('/');
+        setTimeout(() => navigate('/'), 3000);
       }
     };
 

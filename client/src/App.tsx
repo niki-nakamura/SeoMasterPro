@@ -10,6 +10,9 @@ import Dashboard from "@/pages/dashboard";
 import ContentGenerator from "@/pages/content-generator";
 import Articles from "@/pages/articles";
 import MyArticles from "@/pages/my-articles";
+import Settings from "@/pages/settings";
+import AuthCallback from "@/pages/auth/callback";
+import TestPage from "@/pages/test-page";
 import NotFound from "@/pages/not-found";
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -37,6 +40,7 @@ function Router() {
       <Route path="/analytics" component={() => <AppLayout><div>Analytics coming soon...</div></AppLayout>} />
       <Route path="/settings" component={() => <AppLayout><Settings /></AppLayout>} />
       <Route path="/auth/callback" component={AuthCallback} />
+      <Route path="/test" component={TestPage} />
       <Route component={NotFound} />
     </Switch>
   );
