@@ -30,7 +30,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # For OAuth redirect (development/production)
 VITE_SITE_URL=http://localhost:3000  # Development
-# VITE_SITE_URL=https://your-app.replit.app  # Production
+# VITE_SITE_URL=https://seo-master-pro-nikinakamu.replit.app  # Production
 ```
 
 3. Start the development server:
@@ -121,7 +121,7 @@ npx pythagora
 
 ### Supabase Configuration
 1. Go to Supabase Dashboard → Auth → URL Configuration
-2. Set **Site URL**: `https://your-app.replit.app`
+2. Set **Site URL**: `https://seo-master-pro-nikinakamu.replit.app`
 3. Add **Additional Redirect URLs**: same URL
 4. Save settings
 
@@ -134,7 +134,7 @@ Add the following in Replit UI (Secrets):
 **Deployment Secrets** (Production):
 - `VITE_SUPABASE_URL`: Your Supabase project URL
 - `VITE_SUPABASE_ANON_KEY`: Your Supabase anonymous key  
-- `VITE_SITE_URL`: `https://your-app.replit.app`
+- `VITE_SITE_URL`: `https://seo-master-pro-nikinakamu.replit.app`
 
 ### Deploy
 Click **Deploy** in Replit interface
