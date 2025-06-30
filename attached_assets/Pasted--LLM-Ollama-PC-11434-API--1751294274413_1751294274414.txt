@@ -1,0 +1,46 @@
+## いま把握している状況
+
+* **ローカル LLM（Ollama）** は既に PC 側で起動できる前提。
+
+  * ポート `11434` で待機している API を使います。
+* `scripts/embed_existing_articles.ts` は **OpenAI Embedding** を前提に実装済み。
+* `package.json` には `"embed": "tsx scripts/embed_existing_articles.ts"` が登録済み。
+* Replit での開発サーバー／ビルド動作は正常。
+
+---
+
+## 次に行う作業（あなた＝開発者が Replit 上で実施）
+
+| 手順 | 作業内容               | 具体的コマンド / 変更箇所                                                                                                                                                                                                                                                                                                                                                                                                                                             |       |                                  |
+| -- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | -------------------------------- |
+| 1  | **埋め込み API の置換**   | `scripts/embed_existing_articles.ts` 内の OpenAI 呼び出し部分を下記に差し替え:  `ts\n// 旧: const res = await openai.embeddings.create({model:'text-embedding-3-small', input: text});\n// 新\nconst res = await fetch('http://localhost:11434/api/embeddings', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ model: 'mxbai-embed-large', prompt: text })\n});\nconst { embedding } = await res.json(); // 1536 次元配列\n` |       |                                  |
+| 2  | **ローカル用スクリプト名を追加** | `package.json` → `scripts` に行を追加  `json\n\"embed:local\": \"tsx scripts/embed_existing_articles.ts\"\n`                                                                                                                                                                                                                                                                                                                                                    |       |                                  |
+| 3  | **コミット**           | `bash\ngit add scripts/embed_existing_articles.ts package.json\ngit commit -m \"switch embed script to Ollama local\"\n`                                                                                                                                                                                                                                                                                                                                   |       |                                  |
+| 4  | **ローカル埋め込み実行**     | Shell タブで  `bash\nnpm run embed:local\n`<br>**期待結果**: `🚀 Starting embedding process` → 3 記事分の `✅ Stored embedding:` ログが表示される                                                                                                                                                                                                                                                                                                                              |       |                                  |
+| 5  | **動作確認 API**       | \`\`\`bash\ncurl -s -X POST [http://localhost:5000/api/llm-context](http://localhost:5000/api/llm-context) \\\n  -H "Content-Type: application/json" \\\n  -d '{"keyword":"SEO"}'                                                                                                                                                                                                                                                                          | jq '. | length'\n\`\`\`<br>0 でなければ埋め込み成功 |
+| 6  | **ビルド & デプロイ**     | `bash\nnpm run build && git push     # push で Replit が再デプロイ候補に\n`<br>Deployments 画面で **Redeploy** をクリック                                                                                                                                                                                                                                                                                                                                                    |       |                                  |
+| 7  | **フロー全体テスト**       | プライベートウィンドウ → `Sign in with GitHub` → Scrape → Persona … Finalize が LLM 生成まで動くか確認                                                                                                                                                                                                                                                                                                                                                                          |       |                                  |
+
+> **備考**
+>
+> * Ollama 側で `mxbai-embed-large` がロード済みか `ollama list` でご確認ください。
+> * 埋め込み長が 1536 D なので DB スキーマは既に `vector(1536)` に更新済みのはず。エラーが出たら再確認してください。
+
+---
+
+## Replit エージェントへ送るワンライナー（必要なら）
+
+```
+/* === Switch embed script to Ollama ===
+1. scripts/embed_existing_articles.ts の OpenAI 呼び出しを
+   fetch('http://localhost:11434/api/embeddings', … model:'mxbai-embed-large') に置換。
+2. package.json scripts に "embed:local": "tsx scripts/embed_existing_articles.ts" を追加。
+3. git add + commit。
+=== */
+```
+
+（手作業でファイルを直せるならエージェント呼び出しは不要です）
+
+---
+
+### 以上を実行後、`npm run embed:local` が成功すれば **ローカル LLama への完全移行** が完了します。

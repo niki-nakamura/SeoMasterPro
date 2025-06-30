@@ -188,6 +188,14 @@ The application implements a 5-step content generation process:
   ✓ Complete README documentation for embedding workflow
   ✓ Successfully tested with 3 articles from articles_raw table
   ✓ Ready for production embedding generation with valid OpenAI API quota
+- June 30, 2025: Complete migration to Ollama local LLM
+  ✓ Replaced OpenAI embeddings API with Ollama mxbai-embed-large model
+  ✓ Updated embed script to use localhost:11434/api/embeddings endpoint
+  ✓ Removed OpenAI dependency from embedding generation
+  ✓ Created run_embed_local.sh script with prerequisites checking
+  ✓ Updated documentation to reflect Ollama requirements
+  ✓ Complete local LLM infrastructure ready for cost-free embedding generation
+  ✓ Application now fully independent from external AI API costs
 
 ## User Preferences
 

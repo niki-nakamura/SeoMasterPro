@@ -1,6 +1,5 @@
 #!/usr/bin/env tsx
 
-import OpenAI from "openai";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { articlesRaw, contentVectors } from "../shared/schema.js";
@@ -10,24 +9,24 @@ import ws from "ws";
 // Configure WebSocket for Neon
 neonConfig.webSocketConstructor = ws;
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 // Initialize database connection
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle({ client: pool, schema: { articlesRaw, contentVectors } });
 
 async function generateEmbedding(text: string): Promise<number[]> {
   try {
-    const response = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: text,
-      encoding_format: "float",
+    const response = await fetch('http://localhost:11434/api/embeddings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'mxbai-embed-large', prompt: text })
     });
 
-    return response.data[0].embedding;
+    if (!response.ok) {
+      throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+    }
+
+    const { embedding } = await response.json();
+    return embedding;
   } catch (error) {
     console.error("Error generating embedding:", error);
     throw error;
@@ -83,7 +82,7 @@ async function embedExistingArticles() {
       );
 
       // Generate embedding
-      console.log("🧠 Generating embedding with OpenAI...");
+      console.log("🧠 Generating embedding with Ollama (mxbai-embed-large)...");
       const embedding = await generateEmbedding(contentForEmbedding);
 
       // Insert into contentVectors table

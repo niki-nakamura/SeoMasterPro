@@ -5,14 +5,14 @@ This directory contains scripts for generating and managing vector embeddings fo
 ## Scripts
 
 ### `embed_existing_articles.ts`
-Generates embeddings for the latest 3 articles from the `articles_raw` table using OpenAI's text-embedding-3-small model.
+Generates embeddings for the latest 3 articles from the `articles_raw` table using Ollama's mxbai-embed-large model.
 
 **Features:**
 - Fetches latest 3 articles from `articles_raw` table
 - Extracts clean text content from HTML
-- Generates 1536-dimensional embeddings using OpenAI
+- Generates 1536-dimensional embeddings using local Ollama
 - Stores embeddings in `content_vectors` table
-- Includes rate limiting protection
+- Includes error handling for API connectivity
 
 **Usage:**
 ```bash
@@ -20,8 +20,8 @@ tsx scripts/embed_existing_articles.ts
 ```
 
 **Requirements:**
-- Valid `OPENAI_API_KEY` environment variable
-- Sufficient OpenAI API quota
+- Ollama running on localhost:11434
+- mxbai-embed-large model downloaded (`ollama pull mxbai-embed-large`)
 - Database connection to Neon PostgreSQL
 
 ### `test_embed_setup.ts`
@@ -58,11 +58,12 @@ To add the embed script to your package.json scripts (if permissions allow):
 
 ## Troubleshooting
 
-### OpenAI API Quota Exceeded
-If you see a 429 error with "insufficient_quota":
-1. Check your OpenAI account billing and usage
-2. Upgrade your OpenAI plan if needed
-3. Wait for quota reset if on free tier
+### Ollama Connection Issues
+If you see connection errors to localhost:11434:
+1. Ensure Ollama is running: `ollama serve`
+2. Check if mxbai-embed-large model is available: `ollama list`
+3. Download the model if needed: `ollama pull mxbai-embed-large`
+4. Verify API endpoint: `curl http://localhost:11434/api/tags`
 
 ### Database Connection Issues
 Ensure you have:
