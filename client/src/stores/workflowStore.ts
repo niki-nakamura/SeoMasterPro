@@ -93,7 +93,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     if (useScrapedData && data.scrapeData?.results) {
       scrapedContent = data.scrapeData.results
         .filter(result => result.content)
-        .map(result => `${result.title}\n${result.content}`)
+        .map(result => `タイトル: ${result.title}\n内容: ${result.content}`)
         .slice(0, 7); // 最大7記事のコンテンツを使用
     }
     
@@ -106,7 +106,28 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       });
     } catch (error) {
       console.error('Local LLM generation failed:', error);
-      throw error;
+      // フォールバック：サーバー経由でベクトル検索コンテキスト付き生成
+      try {
+        const keyword = data.scrapeData?.keyword || '';
+        const response = await fetch('/proxy/llm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            model: 'tinymistral',
+            useContext: true,
+            keyword
+          })
+        });
+        
+        if (!response.ok) throw new Error('Server LLM fallback failed');
+        
+        const result = await response.json();
+        return result.text;
+      } catch (fallbackError) {
+        console.error('Server LLM fallback also failed:', fallbackError);
+        throw error; // 元のエラーを返す
+      }
     }
   },
 }));

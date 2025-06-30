@@ -35,7 +35,8 @@ function Router() {
       <Route path="/my-articles" component={() => <AppLayout><MyArticles /></AppLayout>} />
       <Route path="/articles" component={() => <AppLayout><Articles /></AppLayout>} />
       <Route path="/analytics" component={() => <AppLayout><div>Analytics coming soon...</div></AppLayout>} />
-      <Route path="/settings" component={() => <AppLayout><div>Settings coming soon...</div></AppLayout>} />
+      <Route path="/settings" component={() => <AppLayout><Settings /></AppLayout>} />
+      <Route path="/auth/callback" component={AuthCallback} />
       <Route component={NotFound} />
     </Switch>
   );
