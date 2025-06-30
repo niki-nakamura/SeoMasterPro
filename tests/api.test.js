@@ -137,6 +137,70 @@ describe('API Endpoints', () => {
     });
   });
   
+  describe('/api/llm-context', () => {
+    it('should retrieve LLM context successfully', async () => {
+      const response = await fetch(`${baseUrl}/api/llm-context`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keyword: 'test context'
+        })
+      });
+      
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data).toHaveProperty('contextText');
+      expect(data).toHaveProperty('sources');
+      expect(data).toHaveProperty('count');
+      expect(typeof data.contextText).toBe('string');
+      expect(Array.isArray(data.sources)).toBe(true);
+      expect(typeof data.count).toBe('number');
+      
+      // LLMコンテキストの構造をチェック
+      if (data.sources.length > 0) {
+        const source = data.sources[0];
+        expect(source).toHaveProperty('id');
+        expect(source).toHaveProperty('content');
+        expect(source).toHaveProperty('similarity');
+        expect(typeof source.similarity).toBe('number');
+      }
+    });
+    
+    it('should handle missing keyword parameter', async () => {
+      const response = await fetch(`${baseUrl}/api/llm-context`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+      });
+      
+      expect(response.status).toBe(400);
+      const error = await response.json();
+      expect(error.message).toContain('Keyword is required');
+    });
+    
+    it('should return empty context for non-existent keywords', async () => {
+      const response = await fetch(`${baseUrl}/api/llm-context`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keyword: 'nonexistentkeywordxyz123'
+        })
+      });
+      
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.count).toBe(0);
+      expect(data.contextText).toBe('');
+      expect(data.sources).toEqual([]);
+    });
+  });
+
   describe('/api/vector-search', () => {
     it('should perform vector search successfully', async () => {
       const response = await fetch(`${baseUrl}/api/vector-search`, {

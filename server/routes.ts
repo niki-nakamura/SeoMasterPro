@@ -9,10 +9,11 @@ import {
   outlineRequestSchema,
   generateContentRequestSchema,
   finalizeRequestSchema,
-  articlesRaw
+  articlesRaw,
+  contentVectors
 } from "@shared/schema";
 import { db } from "./db";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { scrapeSearchResults } from "./services/scraper";
 import { 
   generatePersonaAndIntent, 
@@ -22,6 +23,70 @@ import {
 } from "./services/openai";
 import { generateWithOllama, type OllamaRequest } from "./services/ollama";
 import { searchSimilarContent, extractTopKContent } from "./services/vector-search";
+
+// LLM Context types and functions
+interface LLMContextResult {
+  id: number;
+  content: string;
+  similarity: number;
+}
+
+interface LLMContextResponse {
+  contextText: string;
+  sources: LLMContextResult[];
+  count: number;
+}
+
+async function getLLMContext(keyword: string, k: number = 7): Promise<LLMContextResponse> {
+  try {
+    // contentVectorsテーブルから関連コンテンツを検索
+    const results = await db.execute(sql`
+      SELECT 
+        id, 
+        content_chunk as content,
+        1 - (embedding <=> (SELECT embedding FROM content_vectors WHERE content_chunk ILIKE ${`%${keyword}%`} LIMIT 1)) as similarity
+      FROM content_vectors
+      WHERE content_chunk ILIKE ${`%${keyword}%`}
+      ORDER BY similarity DESC
+      LIMIT ${k}
+    `);
+
+    const sources: LLMContextResult[] = results.rows.map(row => ({
+      id: row.id as number,
+      content: row.content as string,
+      similarity: (row.similarity as number) || 0
+    }));
+
+    // コンテキストテキストを生成
+    const contextText = sources
+      .map((result, index) => `[参考${index + 1}] ${result.content.slice(0, 800)}...`)
+      .join('\n\n---\n\n');
+
+    return {
+      contextText,
+      sources,
+      count: sources.length
+    };
+
+  } catch (error) {
+    console.error('LLM context retrieval failed:', error);
+    // フォールバック：キーワードベース検索
+    const fallbackResults = await searchSimilarContent(keyword, k);
+    const contextText = fallbackResults
+      .map((result, index) => `[参考${index + 1}] ${result.content.slice(0, 800)}...`)
+      .join('\n\n---\n\n');
+    
+    return {
+      contextText,
+      sources: fallbackResults.map(r => ({
+        id: r.id,
+        content: r.content,
+        similarity: r.similarity
+      })),
+      count: fallbackResults.length
+    };
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -374,6 +439,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(rawArticle[0]);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch raw article" });
+    }
+  });
+
+  // LLM Context API - pgvector TOP-k content retrieval
+  app.post("/api/llm-context", async (req, res) => {
+    try {
+      const { keyword } = req.body;
+      
+      if (!keyword) {
+        return res.status(400).json({ message: "Keyword is required" });
+      }
+
+      const context = await getLLMContext(keyword, 7);
+      res.json(context);
+    } catch (error) {
+      console.error("LLM context error:", error);
+      res.status(500).json({ 
+        message: "LLM context retrieval failed", 
+        error: (error as Error).message 
+      });
     }
   });
 

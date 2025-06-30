@@ -96,11 +96,43 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         .map(result => `タイトル: ${result.title}\n内容: ${result.content}`)
         .slice(0, 7); // 最大7記事のコンテンツを使用
     }
+
+    // H2-WRITE前にpgvector TOP-k検索でLLMコンテキストを取得
+    let contextText = '';
+    if (data.scrapeData?.keyword) {
+      try {
+        const response = await fetch('/api/llm-context', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keyword: data.scrapeData.keyword })
+        });
+        
+        if (response.ok) {
+          const contextData = await response.json();
+          contextText = contextData.contextText;
+          console.log(`pgvector TOP-k検索: ${contextData.count}件のコンテキストを取得`);
+        }
+      } catch (error) {
+        console.log('LLMコンテキスト取得をスキップ:', error);
+      }
+    }
+
+    // プロンプトにコンテキストを追加
+    let enhancedPrompt = prompt;
+    if (contextText) {
+      enhancedPrompt = `【関連コンテンツ】
+${contextText}
+
+【質問】
+${prompt}
+
+上記の関連コンテンツを参考にして、詳細で実用的な回答を生成してください。`;
+    }
     
     try {
       const { generateWithLocalLLM } = await import('@/lib/llm');
       return await generateWithLocalLLM({
-        prompt,
+        prompt: enhancedPrompt,
         scrapedContent,
         model: 'tinymistral',
         keyword: data.scrapeData?.keyword

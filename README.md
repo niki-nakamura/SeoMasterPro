@@ -6,10 +6,12 @@ AI-powered SEO content generation application with local LLM support.
 
 - 5-step content generation workflow
 - Web scraping for competitor analysis
-- Local LLM integration with Ollama
-- PostgreSQL database with vector search
+- **pgvector TOP-k search** for intelligent content context
+- Local LLM integration with Ollama (with context injection)
+- PostgreSQL database with vector embeddings
 - Supabase authentication
 - Modern React + TypeScript frontend
+- Comprehensive test suite with Jest
 
 ## Quick Start
 
@@ -108,13 +110,35 @@ npm run db:push
 npm run db:studio
 ```
 
+### API Endpoints
+
+#### Core LLM Context API
+- `POST /api/llm-context` - pgvector TOP-k content retrieval
+  ```json
+  {
+    "keyword": "SEO optimization",
+    "response": {
+      "contextText": "...",
+      "sources": [...],
+      "count": 7
+    }
+  }
+  ```
+
+#### Vector Search API
+- `POST /api/vector-search` - Semantic similarity search
+- `POST /proxy/llm` - Enhanced LLM with context injection
+- `POST /api/scrape` - Web scraping for competitor analysis
+
 ### Testing
 ```bash
-# Run API tests
+# Run API tests (including pgvector tests)
 npm test
 
-# Record new tests with Pythagora
-npx pythagora
+# Test specific endpoint
+curl -X POST http://localhost:5000/api/llm-context \
+  -H "Content-Type: application/json" \
+  -d '{"keyword":"test"}'
 ```
 
 ### Deployment
