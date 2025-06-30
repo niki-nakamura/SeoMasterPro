@@ -80,6 +80,32 @@ describe('API Endpoints', () => {
         expect(error).toHaveProperty('message');
       }
     });
+
+    it('should handle LLM requests with vector context', async () => {
+      const response = await fetch(`${baseUrl}/proxy/llm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: 'Test question',
+          model: 'tinymistral',
+          useContext: true,
+          keyword: 'test'
+        })
+      });
+      
+      // Should handle context injection regardless of Ollama status
+      expect(response.status).toBeOneOf([200, 500]);
+      
+      if (response.status === 200) {
+        const data = await response.json();
+        expect(data).toHaveProperty('text');
+      } else {
+        const error = await response.json();
+        expect(error).toHaveProperty('message');
+      }
+    });
     
     it('should handle missing prompt parameter', async () => {
       const response = await fetch(`${baseUrl}/proxy/llm`, {
@@ -111,6 +137,69 @@ describe('API Endpoints', () => {
     });
   });
   
+  describe('/api/vector-search', () => {
+    it('should perform vector search successfully', async () => {
+      const response = await fetch(`${baseUrl}/api/vector-search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keyword: 'test search',
+          k: 5
+        })
+      });
+      
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data).toHaveProperty('results');
+      expect(data).toHaveProperty('count');
+      expect(Array.isArray(data.results)).toBe(true);
+      expect(typeof data.count).toBe('number');
+      
+      // ベクトル検索結果の構造をチェック
+      if (data.results.length > 0) {
+        const result = data.results[0];
+        expect(result).toHaveProperty('id');
+        expect(result).toHaveProperty('content');
+        expect(result).toHaveProperty('similarity');
+        expect(result).toHaveProperty('url');
+        expect(result).toHaveProperty('title');
+      }
+    });
+    
+    it('should handle missing keyword parameter', async () => {
+      const response = await fetch(`${baseUrl}/api/vector-search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+      });
+      
+      expect(response.status).toBe(400);
+      const error = await response.json();
+      expect(error.message).toContain('Keyword is required');
+    });
+    
+    it('should handle custom k parameter', async () => {
+      const response = await fetch(`${baseUrl}/api/vector-search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keyword: 'test',
+          k: 3
+        })
+      });
+      
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.results.length).toBeLessThanOrEqual(3);
+    });
+  });
+
   describe('/api/articles-raw', () => {
     it('should fetch raw articles from database', async () => {
       const response = await fetch(`${baseUrl}/api/articles-raw`);

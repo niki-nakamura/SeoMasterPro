@@ -25,13 +25,13 @@ export async function searchSimilarContent(
     
     // PostgreSQL LIKE検索でHTMLコンテンツを抽出
     const searchConditions = keywords.map(keyword => 
-      sql`LOWER(${articlesRaw.htmlContent}) LIKE ${`%${keyword}%`}`
+      sql`LOWER(${articlesRaw.html}) LIKE ${`%${keyword}%`}`
     );
     
     const results = await db
       .select({
         id: articlesRaw.id,
-        content: articlesRaw.htmlContent,
+        content: articlesRaw.html,
         url: articlesRaw.url,
         title: articlesRaw.title
       })
@@ -52,6 +52,39 @@ export async function searchSimilarContent(
   } catch (error) {
     console.error('Vector search failed:', error);
     return [];
+  }
+}
+
+// pgvector TOP-k検索機能
+export async function getTopKContent(
+  queryEmbedding: number[], 
+  k: number = 7
+): Promise<VectorSearchResult[]> {
+  try {
+    // pgvectorを使用したコサイン類似度検索
+    const results = await db.execute(sql`
+      SELECT 
+        id, 
+        content, 
+        url, 
+        title,
+        1 - (embedding <=> ${JSON.stringify(queryEmbedding)}::vector) as similarity
+      FROM content_vectors
+      ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::vector ASC
+      LIMIT ${k}
+    `);
+
+    return results.rows.map(row => ({
+      id: row.id as number,
+      content: row.content as string,
+      url: row.url as string,
+      title: row.title as string,
+      similarity: row.similarity as number
+    }));
+  } catch (error) {
+    console.error('pgvector TOP-k search failed:', error);
+    // フォールバック：キーワードベース検索
+    return searchSimilarContent(queryEmbedding.join(' '), k);
   }
 }
 

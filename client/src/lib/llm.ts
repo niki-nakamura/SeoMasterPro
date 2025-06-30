@@ -45,18 +45,42 @@ export async function generateWithLocalLLM(data: {
   prompt: string;
   scrapedContent?: string[];
   model?: string;
+  keyword?: string;
 }): Promise<string> {
-  const { prompt, scrapedContent = [], model = 'tinymistral' } = data;
+  const { prompt, scrapedContent = [], model = 'tinymistral', keyword } = data;
   
-  // スクレイピング済みコンテンツをコンテキストに追加（8K token制限対応）
+  // TOP-k ベクトル検索でコンテキストを取得
+  let vectorContext: string[] = [];
+  if (keyword) {
+    try {
+      const response = await fetch('/api/vector-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword, k: 7 })
+      });
+      
+      if (response.ok) {
+        const { results } = await response.json();
+        vectorContext = results.map((r: any) => 
+          `タイトル: ${r.title}\nURL: ${r.url}\n内容: ${r.content.slice(0, 1000)}...`
+        );
+      }
+    } catch (error) {
+      console.log('ベクトル検索をスキップ:', error);
+    }
+  }
+  
+  // 全コンテキスト（スクレイピング + ベクトル）を統合
+  const allContent = [...scrapedContent, ...vectorContext];
+  
+  // コンテキストをトークン制限内でチャンク結合（8K token制限対応）
   let fullPrompt = prompt;
-  if (scrapedContent.length > 0) {
-    // TOP-k（最大7記事）のコンテンツをトークン制限内でチャンク結合
+  if (allContent.length > 0) {
     const maxTokens = 6000; // 余裕を持って6K tokens
     let contextData = '';
     let currentTokens = 0;
     
-    for (const content of scrapedContent.slice(0, 7)) {
+    for (const content of allContent.slice(0, 7)) {
       const contentTokens = Math.ceil(content.length / 4); // 概算：4文字≈1token
       if (currentTokens + contentTokens > maxTokens) break;
       

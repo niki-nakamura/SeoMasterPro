@@ -21,6 +21,7 @@ import {
   generateMetaTags
 } from "./services/openai";
 import { generateWithOllama, type OllamaRequest } from "./services/ollama";
+import { searchSimilarContent, extractTopKContent } from "./services/vector-search";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -376,16 +377,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Ollama LLM Proxy
+  // Vector Search API
+  app.post("/api/vector-search", async (req, res) => {
+    try {
+      const { keyword, k = 7 } = req.body;
+      
+      if (!keyword) {
+        return res.status(400).json({ message: "Keyword is required" });
+      }
+
+      const results = await searchSimilarContent(keyword, k);
+      res.json({ results, count: results.length });
+    } catch (error) {
+      console.error("Vector search error:", error);
+      res.status(500).json({ 
+        message: "Vector search failed", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Ollama LLM Proxy (enhanced with vector context)
   app.post("/proxy/llm", async (req, res) => {
     try {
-      const { prompt, model } = req.body as OllamaRequest;
+      const { prompt, model, useContext, keyword } = req.body as OllamaRequest & {
+        useContext?: boolean;
+        keyword?: string;
+      };
       
       if (!prompt) {
         return res.status(400).json({ message: "Prompt is required" });
       }
 
-      const result = await generateWithOllama({ prompt, model });
+      let enhancedPrompt = prompt;
+      
+      // TOP-k ベクトル検索でコンテキストを追加
+      if (useContext && keyword) {
+        try {
+          const topKContent = await extractTopKContent(keyword, 7);
+          if (topKContent.length > 0) {
+            const contextData = topKContent.join('\n\n---\n\n');
+            enhancedPrompt = `以下の参考記事を踏まえて回答してください：
+
+${contextData}
+
+---
+
+質問: ${prompt}`;
+          }
+        } catch (contextError) {
+          console.log('ベクトルコンテキスト取得をスキップ:', contextError);
+        }
+      }
+
+      const result = await generateWithOllama({ prompt: enhancedPrompt, model });
       res.json(result);
     } catch (error) {
       console.error("Ollama proxy error:", error);

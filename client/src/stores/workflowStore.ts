@@ -102,7 +102,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       return await generateWithLocalLLM({
         prompt,
         scrapedContent,
-        model: 'tinymistral'
+        model: 'tinymistral',
+        keyword: data.scrapeData?.keyword
       });
     } catch (error) {
       console.error('Local LLM generation failed:', error);
