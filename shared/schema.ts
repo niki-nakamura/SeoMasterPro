@@ -52,9 +52,9 @@ export const articlesRaw = pgTable("articles_raw", {
 // Vector embeddings for semantic search
 export const contentVectors = pgTable("content_vectors", {
   id: serial("id").primaryKey(),
-  articleId: integer("article_id").notNull().references(() => articles.id),
-  contentChunk: text("content_chunk").notNull(),
-  embedding: vector("embedding", { dimensions: 768 }),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  embedding: vector("embedding", { dimensions: 1536 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

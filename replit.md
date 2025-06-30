@@ -179,6 +179,15 @@ The application implements a 5-step content generation process:
   ✓ Context injection logs for debugging and monitoring
   ✓ Fallback mechanisms for robust error handling
   ✓ Production-ready deployment with enhanced AI capabilities
+- June 30, 2025: OpenAI embeddings infrastructure
+  ✓ Updated contentVectors schema to 1536 dimensions for text-embedding-3-small
+  ✓ Created scripts/embed_existing_articles.ts with OpenAI embedding generation
+  ✓ Database migration to support title/content fields instead of articleId/contentChunk
+  ✓ WebSocket configuration for Neon database in standalone scripts
+  ✓ Test script (test_embed_setup.ts) to verify infrastructure without API calls
+  ✓ Complete README documentation for embedding workflow
+  ✓ Successfully tested with 3 articles from articles_raw table
+  ✓ Ready for production embedding generation with valid OpenAI API quota
 
 ## User Preferences
 
