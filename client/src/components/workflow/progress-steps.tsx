@@ -1,12 +1,21 @@
-import { Check } from "lucide-react";
+import { Check, Search, Users, FileText, PenTool, Sparkles } from "lucide-react";
 import type { WorkflowStep } from "@/types/article";
 
 interface ProgressStepsProps {
   steps: WorkflowStep[];
   currentStep: number;
+  isLoading?: boolean;
 }
 
-export function ProgressSteps({ steps, currentStep }: ProgressStepsProps) {
+const stepIcons = [
+  Search,    // Step 1: Scrape
+  Users,     // Step 2: Persona  
+  FileText,  // Step 3: Outline
+  PenTool,   // Step 4: Generate
+  Sparkles   // Step 5: Finalize
+];
+
+export function ProgressSteps({ steps, currentStep, isLoading }: ProgressStepsProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
       <div className="flex items-center justify-between mb-6">
@@ -18,21 +27,24 @@ export function ProgressSteps({ steps, currentStep }: ProgressStepsProps) {
         {steps.map((step, index) => (
           <div key={step.id} className="flex items-center">
             <div className="flex items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
                 step.completed 
-                  ? "bg-emerald-500" 
+                  ? "bg-emerald-500 shadow-lg" 
                   : step.current 
-                    ? "bg-brand-500" 
+                    ? "bg-blue-500 shadow-md animate-pulse" 
                     : "bg-slate-200"
-              }`}>
+              } ${isLoading && step.current ? "animate-bounce" : ""}`}>
                 {step.completed ? (
-                  <Check className="text-white w-4 h-4" />
+                  <Check className="text-white w-5 h-5" />
                 ) : (
-                  <span className={`text-sm font-medium ${
-                    step.current ? "text-white" : "text-slate-500"
-                  }`}>
-                    {step.id}
-                  </span>
+                  (() => {
+                    const IconComponent = stepIcons[index];
+                    return (
+                      <IconComponent className={`w-5 h-5 ${
+                        step.current ? "text-white" : "text-slate-500"
+                      }`} />
+                    );
+                  })()
                 )}
               </div>
               <div className="ml-3">

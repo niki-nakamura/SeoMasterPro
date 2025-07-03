@@ -39,15 +39,22 @@ interface LLMContextResponse {
 
 async function getLLMContext(keyword: string, k: number = 7): Promise<LLMContextResponse> {
   try {
-    // contentVectorsテーブルから関連コンテンツを検索
+    // Use HNSW index for efficient vector similarity search
     const results = await db.execute(sql`
+      WITH keyword_vector AS (
+        SELECT embedding 
+        FROM content_vectors 
+        WHERE content ILIKE ${`%${keyword}%`} 
+        ORDER BY LENGTH(content) DESC 
+        LIMIT 1
+      )
       SELECT 
-        id, 
-        content_chunk as content,
-        1 - (embedding <=> (SELECT embedding FROM content_vectors WHERE content_chunk ILIKE ${`%${keyword}%`} LIMIT 1)) as similarity
-      FROM content_vectors
-      WHERE content_chunk ILIKE ${`%${keyword}%`}
-      ORDER BY similarity DESC
+        cv.id, 
+        cv.title,
+        cv.content,
+        1 - (cv.embedding <=> kv.embedding) as similarity
+      FROM content_vectors cv, keyword_vector kv
+      ORDER BY cv.embedding <=> kv.embedding
       LIMIT ${k}
     `);
 

@@ -26,6 +26,9 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Configure scraping delay from environment variable
+const SCRAPE_DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "3000", 10);
+
 // HTTPベースのGoogle検索スクレイピング（Replit対応版）
 export async function scrapeSearchResults(keyword: string, maxResults: number = 8): Promise<ScrapedResult[]> {
   try {
@@ -151,10 +154,10 @@ export async function scrapeSearchResults(keyword: string, maxResults: number = 
           });
         }
         
-        // 3秒遅延（最後のアイテム以外）
+        // Configurable delay (defaults to 3 seconds)
         if (i < Math.min(searchResults.length, maxResults) - 1) {
-          console.log('Waiting 3 seconds before next request...');
-          await delay(3000);
+          console.log(`Waiting ${SCRAPE_DELAY_MS}ms before next request...`);
+          await delay(SCRAPE_DELAY_MS);
         }
         
       } catch (error) {

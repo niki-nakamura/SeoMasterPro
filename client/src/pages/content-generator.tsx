@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useWorkflowStore } from "@/stores/workflowStore";
 import { ProgressSteps } from "@/components/workflow/progress-steps";
+import { GenerationPreview } from "@/components/workflow/generation-preview";
 import { StepScrape } from "@/components/workflow/step-scrape";
 import { StepPersona } from "@/components/workflow/step-persona";
 import { StepOutline } from "@/components/workflow/step-outline";
@@ -203,15 +204,18 @@ export default function ContentGenerator() {
     },
   ];
 
+  const currentLoading = Object.values(loadingStates).some(loading => loading);
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-center mb-8">Content Generator</h1>
         
-        <ProgressSteps steps={steps} currentStep={step} />
+        <ProgressSteps steps={steps} currentStep={step + 1} isLoading={currentLoading} />
         
-        <div className="mt-8">
-          {step === 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+          <div className="lg:col-span-2">
+            {step === 0 && (
             <StepScrape
               onComplete={handleScrape}
               onNext={nextStep}
@@ -262,6 +266,16 @@ export default function ContentGenerator() {
               wordCount={data.finalizeData?.wordCount}
             />
           )}
+          </div>
+          
+          {/* Generation Preview Panel */}
+          <div className="lg:col-span-1">
+            <GenerationPreview 
+              step={step + 1} 
+              data={data} 
+              isLoading={currentLoading} 
+            />
+          </div>
         </div>
       </div>
     </div>
