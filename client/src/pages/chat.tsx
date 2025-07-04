@@ -21,6 +21,23 @@ interface OllamaStatus {
   models?: Array<{ name: string }>;
 }
 
+const checkOllamaStatus = async (): Promise<OllamaStatus> => {
+  try {
+    const response = await fetch('/api/ollama/status');
+    if (!response.ok) {
+      return { running: false, models: [] };
+    }
+    const data = await response.json();
+    return {
+      running: data.running || false,
+      models: data.models || []
+    };
+  } catch (error) {
+    console.error('Failed to check Ollama status:', error);
+    return { running: false, models: [] };
+  }
+};
+
 export default function Chat() {
   const [isStarted, setIsStarted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -81,8 +98,8 @@ export default function Chat() {
         return;
       }
       
-      const hasModel = status.models?.some((m: any) => m.name === selectedModel);
-      if (!hasModel) {
+      const hasModel = ollamaStatus.models?.some((m: any) => m.name === selectedModel);
+      if (!webLLMReady && !hasModel) {
         toast({
           title: "必要なモデルがインストールされていません",
           description: `設定ページで ${selectedModel} をダウンロードしてください`,
@@ -208,52 +225,77 @@ export default function Chat() {
     abortController.current = new AbortController();
 
     try {
-      await fetchEventSource("/api/ollama/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: newMessages,
-        }),
-        signal: abortController.current.signal,
-        onmessage(evt) {
-          try {
-            const data = JSON.parse(evt.data);
-            
-            if (data.error) {
-              throw new Error(data.error);
-            }
+      // Check if WebLLM is available and use it for inference
+      if ((window as any).__webllm) {
+        const engine = (window as any).__webllm.engine;
+        const response = await engine.chat.completions.create({
+          messages: newMessages.map((msg: Message) => ({
+            role: msg.role,
+            content: msg.content
+          })),
+          temperature: 0.7,
+          max_tokens: 1000
+        });
+        
+        const assistantResponse = response.choices[0]?.message?.content || "";
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[assistantMessageIndex] = {
+            ...updated[assistantMessageIndex],
+            content: assistantResponse
+          };
+          return updated;
+        });
+        setIsLoading(false);
+      } else {
+        // Fallback to Ollama SSE streaming
+        await fetchEventSource("/api/ollama/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            messages: newMessages,
+          }),
+          signal: abortController.current.signal,
+          onmessage(evt) {
+            try {
+              const data = JSON.parse(evt.data);
+              
+              if (data.error) {
+                throw new Error(data.error);
+              }
 
-            if (data.message?.content) {
-              setMessages(prev => {
-                const updated = [...prev];
-                updated[assistantMessageIndex] = {
-                  ...updated[assistantMessageIndex],
-                  content: updated[assistantMessageIndex].content + data.message.content
-                };
-                return updated;
-              });
-            }
+              if (data.message?.content) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  updated[assistantMessageIndex] = {
+                    ...updated[assistantMessageIndex],
+                    content: updated[assistantMessageIndex].content + data.message.content
+                  };
+                  return updated;
+                });
+              }
 
-            if (data.done) {
-              setIsLoading(false);
+              if (data.done) {
+                setIsLoading(false);
+              }
+            } catch (error) {
+              console.error("Error parsing message:", error);
             }
-          } catch (error) {
-            console.error("Error parsing message:", error);
-          }
-        },
-        onerror(err) {
-          console.error("EventSource failed:", err);
-          toast({
-            title: "チャットエラー",
-            description: "メッセージの送信に失敗しました",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-        },
-      });
+          },
+          onerror(err) {
+            console.error("EventSource failed:", err);
+            toast({
+              title: "チャットエラー",
+              description: "メッセージの送信に失敗しました",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+          },
+        });
+      }
     } catch (error: any) {
       if (error.name !== 'AbortError') {
         console.error("Chat error:", error);

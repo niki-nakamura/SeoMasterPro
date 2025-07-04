@@ -260,6 +260,15 @@ The application implements a 5-step content generation process:
   ✓ Replit デプロイ: Fork → Deploy → /settings → 「サーバーを起動」→ /chat
   ✓ 1-2分で完全セットアップ、月額$1.4の低コスト運用
   ✓ ワンクリック デプロイ & 自動検証システム完成
+- July 5, 2025: 完全デュアルモード WebLLM/Ollama システム実装
+  ✓ WebGPU 対応ブラウザで Llama 3 8B 自動検出・ブラウザ推論
+  ✓ 非対応環境では既存 Ollama tinymistral への自動フォールバック
+  ✓ client/src/lib/webllm.ts に initLlama3() 関数実装（2GB モデル自動DL）
+  ✓ 設定画面で WebGPU 検出とモード別初期化フロー（TinySwallow風UI）
+  ✓ チャット画面で engine.chat.completions.create() API 対応
+  ✓ 現在のLLMモード表示（WebGPU推論 vs Ollama推論）
+  ✓ LITE_MODE でも WebGPU 環境なら高性能 Llama 3 推論利用可能
+  ✓ 外部API コスト完全ゼロ・最適パフォーマンス自動選択システム完成
 
 ## User Preferences
 

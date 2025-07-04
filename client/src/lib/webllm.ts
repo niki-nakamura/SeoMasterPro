@@ -33,7 +33,43 @@ export function isWebGPUSupported(): boolean {
 }
 
 /**
- * Initialize WebLLM with progress tracking
+ * Initialize WebLLM with Llama 3 8B model for production use
+ */
+export async function initLlama3(
+  onProgress: (progress: number) => void
+): Promise<webllm.MLCEngine> {
+  if (!isWebGPUSupported()) {
+    throw new Error("WebGPU is not supported in this browser");
+  }
+
+  const model = "Llama-3-8B-Instruct-q4f16_1-MLC";
+  
+  // Create engine with progress callback
+  const engine = new webllm.MLCEngine();
+  
+  engine.setInitProgressCallback((progress: webllm.InitProgressReport) => {
+    const percent = progress.progress || 0;
+    onProgress(percent);
+  });
+
+  await engine.reload(model);
+  
+  // Store in global for chat interface
+  const instance: WebLLMInstance = {
+    engine,
+    model,
+    isReady: true
+  };
+  
+  if (typeof window !== "undefined") {
+    window.__webllm = instance;
+  }
+  
+  return engine;
+}
+
+/**
+ * Initialize WebLLM with progress tracking (legacy TinyLlama)
  */
 export async function initWebLLM(
   onProgress: (progress: WebLLMProgress) => void,
@@ -75,7 +111,7 @@ export async function initWebLLM(
 }
 
 /**
- * Generate chat completion using WebLLM (simplified API)
+ * Generate chat completion using WebLLM
  */
 export async function generateWithWebLLM(
   messages: Array<{ role: string; content: string }>,
@@ -90,24 +126,20 @@ export async function generateWithWebLLM(
   }
 
   try {
-    // For now, use a simplified approach due to API complexity
-    // This would need to be implemented based on the actual WebLLM API documentation
-    const engine = window.__webllm.engine as any;
+    const engine = window.__webllm.engine;
     
-    // Simple text generation approach
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage && lastMessage.role === 'user') {
-      // Use the engine's generate method if available
-      if (engine.generate) {
-        const response = await engine.generate(lastMessage.content, {
-          temperature: options.temperature || 0.7,
-          max_gen_len: options.max_tokens || 1000,
-        });
-        return response || "";
-      }
-    }
+    // Use the proper WebLLM chat completion API
+    const response = await engine.chat.completions.create({
+      messages: messages.map(msg => ({
+        role: msg.role as "user" | "assistant" | "system",
+        content: msg.content
+      })),
+      temperature: options.temperature || 0.7,
+      max_tokens: options.max_tokens || 1000,
+      stream: false
+    });
     
-    return "WebLLM response (API implementation needed)";
+    return response.choices[0]?.message?.content || "";
   } catch (error) {
     console.error("WebLLM generation failed:", error);
     throw error;

@@ -11,7 +11,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { testOllamaConnection } from "@/lib/llm";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { isWebGPUSupported, initWebLLM, isWebLLMReady, WebLLMProgress } from "@/lib/webllm";
+import { isWebGPUSupported, initWebLLM, initLlama3, isWebLLMReady, WebLLMProgress } from "@/lib/webllm";
 
 interface OllamaModel {
   name: string;
@@ -86,7 +86,7 @@ export default function Settings() {
     }
   };
 
-  // WebLLM initialization
+  // WebLLM initialization with Llama 3 8B
   const handleStartWebLLM = async () => {
     if (!webGPUSupported) {
       toast({
@@ -100,17 +100,19 @@ export default function Settings() {
 
     setIsInitializingWebLLM(true);
     setWebLLMProgress(0);
-    setInitPhase('webllm-init');
+    setInitPhase('download');
 
     try {
-      await initWebLLM((progress: WebLLMProgress) => {
-        setWebLLMProgress(progress.progress * 100);
-        setStartupProgress(progress.text || `Loading model... ${Math.round(progress.progress * 100)}%`);
+      // Use initLlama3 for production Llama 3 8B model
+      await initLlama3((progress: number) => {
+        const percent = Math.round(progress * 100);
+        setWebLLMProgress(percent);
+        setStartupProgress(`Fetching Llama 3 8B model... ${percent}%`);
       });
 
       toast({
-        title: "WebLLM準備完了",
-        description: "ブラウザ内LLMが準備完了しました。チャット画面に移動します。",
+        title: "Llama 3 8B 準備完了",
+        description: "ブラウザ内Llama 3 8Bが準備完了しました。チャット画面に移動します。",
       });
 
       // Auto-redirect to chat
