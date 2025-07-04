@@ -42,7 +42,7 @@ export async function initLlama3(
     throw new Error("WebGPU is not supported in this browser");
   }
 
-  const model = "Llama-3-8B-Instruct-q4f16_1-MLC";
+  const modelId = "Llama-3-8B-Instruct-q4f16_1-MLC";
   
   // Create engine with progress callback
   const engine = new webllm.MLCEngine();
@@ -52,12 +52,14 @@ export async function initLlama3(
     onProgress(percent);
   });
 
-  await engine.reload(model);
+  // Use the model ID - the model URL will be resolved from the model.json file
+  // or from environment variable VITE_MODEL_URL if set
+  await engine.reload(modelId);
   
   // Store in global for chat interface
   const instance: WebLLMInstance = {
     engine,
-    model,
+    model: modelId,
     isReady: true
   };
   
