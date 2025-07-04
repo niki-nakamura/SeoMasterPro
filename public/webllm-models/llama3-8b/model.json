@@ -1,0 +1,23 @@
+{
+  "model_id": "Llama-3-8B-Instruct-q4f16_1-MLC",
+  "model_type": "llama",
+  "model_url": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC",
+  "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-libs/v0_2_46/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+  "vram_required_MB": 4096.0,
+  "low_resource_required": false,
+  "required_features": ["shader-f16"],
+  "context_window_size": 4096,
+  "prefill_chunk_size": 4096,
+  "attention_sink_size": 4,
+  "sliding_window_size": 4096,
+  "tensor_parallel_shards": 1,
+  "temperature": 0.6,
+  "presence_penalty": 0.0,
+  "frequency_penalty": 0.0,
+  "top_p": 0.9,
+  "repetition_penalty": 1.01,
+  "tokenizer_files": [
+    "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC/resolve/main/tokenizer.json"
+  ],
+  "conv_template": "llama-3_1"
+}

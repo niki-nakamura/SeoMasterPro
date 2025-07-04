@@ -559,12 +559,11 @@ ${contextData}
       }
 
       // Set SSE headers for streaming start progress
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-      });
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.flushHeaders(); // ←これ必須
 
       res.write(`data: ${JSON.stringify({ status: "starting", message: "Ollamaサーバーを起動中..." })}\n\n`);
 
@@ -624,12 +623,11 @@ ${contextData}
 
   app.post("/api/ollama/init", async (req, res) => {
     try {
-      res.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "Access-Control-Allow-Origin": "*"
-      });
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.flushHeaders(); // ←これ必須
 
       const { ollamaManager } = await import("./services/ollama-manager");
       await ollamaManager.initialize(res);
@@ -685,12 +683,11 @@ ${contextData}
       }
 
       // Set SSE headers for streaming chat
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-      });
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.flushHeaders(); // ←これ必須
 
       const response = await fetch("http://localhost:11434/api/chat", {
         method: "POST",

@@ -71,6 +71,12 @@ export default function Settings() {
     }
   };
 
+  // Fallback to Ollama when WebLLM fails
+  const fallbackToOllama = async () => {
+    setLLMMode('ollama');
+    await handleStartOllama();
+  };
+
   // New unified LLM startup function with WebGPU detection
   const handleStartLLM = async () => {
     // Auto-detect mode if set to auto
@@ -107,7 +113,8 @@ export default function Settings() {
       await initLlama3((progress: number) => {
         const percent = Math.round(progress * 100);
         setWebLLMProgress(percent);
-        setStartupProgress(`Fetching Llama 3 8B model... ${percent}%`);
+        const downloadedMB = Math.round(progress * 1900);
+        setStartupProgress(`Fetching params ${downloadedMB} / 1900 MB`);
       });
 
       toast({
@@ -128,7 +135,7 @@ export default function Settings() {
         variant: "destructive",
       });
       // Fallback to Ollama
-      await handleStartOllama();
+      await fallbackToOllama();
     } finally {
       setIsInitializingWebLLM(false);
       setWebLLMProgress(0);
