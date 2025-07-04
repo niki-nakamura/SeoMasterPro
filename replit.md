@@ -242,6 +242,15 @@ The application implements a 5-step content generation process:
   ✓ チャット画面でのシステムチェックと設定ページ自動リダイレクト
   ✓ 推奨モデル（tinymistral, mxbai-embed-large, llama3.2:3b）の自動インストール
   ✓ ユーザーは「ボタン１つ」で完全なローカルLLM環境を構築可能
+- July 5, 2025: デプロイ安定化 & 軽量モード実装
+  ✓ LITE_MODE=true でReplitでの軽量デプロイ（tinymistralのみ、340MB）
+  ✓ Docker / self-host モード用の完全なDockerfile & docker-compose.yml作成
+  ✓ ヘルスチェックエンドポイント /api/health 実装
+  ✓ 環境変数による推奨モデル選択（RECOMMENDED_MODELS）
+  ✓ .env.example に軽量モード設定項目追加
+  ✓ 設定画面でモード別の説明表示（Replit軽量モード vs フルモード）
+  ✓ README.md に Cloud/Docker/Local の3つのデプロイ方法追記
+  ✓ Production環境でのストレージ最適化とモデル永続化対応
 
 ## User Preferences
 

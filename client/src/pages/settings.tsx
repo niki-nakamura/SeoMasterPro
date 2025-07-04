@@ -39,7 +39,10 @@ export default function Settings() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  const recommendedModels = [
+  const isLiteMode = import.meta.env.VITE_LITE_MODE === 'true' || false;
+  const recommendedModels = isLiteMode ? [
+    { name: 'tinymistral', description: 'Replit軽量モード - 高速テキスト生成（推奨）', size: '340MB' }
+  ] : [
     { name: 'tinymistral', description: '軽量で高速なテキスト生成モデル', size: '637MB' },
     { name: 'mxbai-embed-large', description: 'ベクトル埋め込み生成モデル', size: '334MB' },
     { name: 'llama3.2:3b', description: '高品質な多言語対応モデル', size: '2.0GB' }
@@ -379,7 +382,9 @@ export default function Settings() {
                       ローカルLLM設定
                     </CardTitle>
                     <CardDescription>
-                      Ollamaを使用してローカルPC上でLLMを動作させることで、サーバーコストを削減できます
+                      {isLiteMode 
+                        ? "Replitでは軽量モード（tinymistralのみ自動DL、340MB）でサーバーコストを削減"
+                        : "Ollamaを使用してローカルPC上でLLMを動作させることで、サーバーコストを削減できます"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">

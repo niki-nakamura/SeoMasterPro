@@ -1,0 +1,68 @@
+### 🛠️ タスク: デプロイ安定化 & 軽量モード
+
+#### 1. Replit “Lite” モード
+* `/api/ollama/init` 実行時に env `LITE_MODE=true` のときは  
+  `recommendedModels = ["tinymistral"]` だけをダウンロード。  
+* 設定ページの説明を “Replit では tinymistral のみ自動 DL（340 MB）” と表示。  
+* デフォルト env を `.replit` に追加：`export LITE_MODE=true`.
+
+#### 2. Docker / self‑host モード
+* `Dockerfile` を新規作成  
+  ```Dockerfile
+  FROM ubuntu:22.04
+  RUN apt-get update && apt-get install -y curl git
+  RUN curl https://ollama.ai/install.sh | sh
+  WORKDIR /app
+  COPY . .
+  RUN pnpm install --prod
+  EXPOSE 5000 11434
+  CMD ["bash", "-c", "ollama serve & node server/index.js"]
+docker-compose.yml で volumes:/ollama をマウントしモデル永続化。
+
+3. .env / Secrets
+OLLAMA_HOST=http://127.0.0.1:11434
+
+RECOMMENDED_MODELS=tinymistral,mxbai-embed-large,llama3.2:3b
+（Docker モードでは env で上書き）
+
+4. QA 手順
+Replit: env LITE_MODE=true → 「サーバーを起動」→ モデル DL 完了 → /chat で “hello” 返答確認。
+
+ローカル Docker: docker compose up --build → 初回 DL → /chat で応答。
+
+5. ドキュメント
+README に
+
+markdown
+Copy
+## クラウドで試すには
+- Replit → tinymistral 限定
+- Docker → 全モデル対応（8 GB 以上のボリューム必須）
+replit.md に “Lite モード追加・Dockerfile 追加” を追記。
+
+markdown
+Copy
+
+---
+
+## 参考になった技術情報
+
+* Node の `detached:true` で永続プロセスを spawn する詳細 :contentReference[oaicite:3]{index=3}  
+* Replit サンドボックスで system パッケージを扱う制限点 :contentReference[oaicite:4]{index=4}  
+* Ollama をクラウドで常駐＋ pull を１コマンドで行う方法（s6‑overlay 例） :contentReference[oaicite:5]{index=5}  
+* Ollama のモデル一覧は `/api/tags` で取得 :contentReference[oaicite:6]{index=6}  
+* `/api/pull` は `stream:true` で進捗 JSON チャンクが取得できる :contentReference[oaicite:7]{index=7}  
+* SSE 実装ベストプラクティス（Node + Express） :contentReference[oaicite:8]{index=8}  
+* Node でバックグラウンドプロセスを安全に扱う Thread まとめ :contentReference[oaicite:9]{index=9}  
+* Ollama を production で使う際のリソース監視の勧め :contentReference[oaicite:10]{index=10}  
+* “Ollama は production-ready?” スレで語られる課題と回避策 :contentReference[oaicite:11]{index=11}  
+* Replit 以外の ML 向け PaaS（Fly.io 8 GB イメージ枠拡張） :contentReference[oaicite:12]{index=12}  
+
+---
+
+## まとめ
+
+* Replit でも **tinymistral だけなら** ストレージ 1 GB 以内でワンクリック動作可。  
+* より大きいモデルも使いたい場合は **Docker self‑host** へ切り替える。  
+* 上記指示文を実行すれば、どちらの環境でも「ボタン１つで ①サーバー起動→②モデル DL→③チャット開始」が確実に完了します。
+::contentReference[oaicite:13]{index=13}

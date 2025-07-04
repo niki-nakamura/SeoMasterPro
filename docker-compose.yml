@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  seo-master-pro:
+    build: .
+    ports:
+      - "5000:5000"
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      - NODE_ENV=production
+      - LITE_MODE=false
+      - OLLAMA_HOST=http://127.0.0.1:11434
+      - RECOMMENDED_MODELS=tinymistral,mxbai-embed-large,llama3.2:3b
+      - DATABASE_URL=sqlite:///app/data/database.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  ollama_models:
+    driver: local

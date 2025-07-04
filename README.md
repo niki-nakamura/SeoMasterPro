@@ -15,24 +15,35 @@ AI-powered SEO content generation application with local LLM support.
 
 ## Quick Start
 
+### Cloud Deployment (Replit)
+1. Fork the project on Replit
+2. Lite mode is enabled by default (tinymistral only, ~340MB)
+3. Go to Settings page → Click "サーバーを起動" button
+4. Automatic model download and chat setup
+
+### Self-Hosted Docker (Full Models)
+1. Clone the repository
+2. Run full model stack:
+```bash
+docker-compose up --build
+```
+This includes all models (requires 8GB+ storage for complete setup)
+
+### Local Development
 1. Install dependencies:
 ```bash
 npm install
 ```
 
-2. Set up environment variables:
+2. Set up environment variables (copy from .env.example):
 ```bash
 # Required
 DATABASE_URL=your_database_url
 OPENAI_API_KEY=your_openai_key
 
-# For Supabase authentication (production)
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# For OAuth redirect (development/production)
-VITE_SITE_URL=http://localhost:3000  # Development
-# VITE_SITE_URL=https://seo-master-pro-nikinakamu.replit.app  # Production
+# Deployment mode
+LITE_MODE=true          # Replit mode (tinymistral only)
+VITE_LITE_MODE=true     # Frontend mode indicator
 ```
 
 3. Start the development server:

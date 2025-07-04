@@ -643,6 +643,19 @@ ${contextData}
     }
   });
 
+  // Health check endpoint for Docker
+  app.get("/api/health", (req, res) => {
+    res.status(200).json({ 
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        liteMode: process.env.LITE_MODE === 'true'
+      }
+    });
+  });
+
   app.post("/api/ollama/chat", async (req, res) => {
     try {
       const { model = "tinymistral", messages } = req.body;

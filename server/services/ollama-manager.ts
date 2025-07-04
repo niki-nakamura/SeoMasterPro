@@ -175,7 +175,11 @@ class OllamaManager {
   }
 
   async initialize(res?: Response): Promise<void> {
-    const recommendedModels = ["tinymistral", "mxbai-embed-large", "llama3.2:3b"];
+    // Use Lite mode for Replit to reduce storage usage
+    const isLiteMode = process.env.LITE_MODE === 'true';
+    const recommendedModels = isLiteMode 
+      ? ["tinymistral"]  // Only lightweight model for Replit (~340MB)
+      : ["tinymistral", "mxbai-embed-large", "llama3.2:3b"];  // Full set for self-hosted
     
     // Phase 1: Start server
     if (res) {
