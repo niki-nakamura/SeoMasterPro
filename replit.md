@@ -206,6 +206,14 @@ The application implements a 5-step content generation process:
   ✓ Scraping performance tested: 3 pages in ~9 seconds (target achieved)
   ✓ Vector search infrastructure ready (0.2s response time confirmed)
   ✓ Application ready for production deployment with enhanced UX
+- July 5, 2025: ローカルLLM自動ダウンロード機能実装
+  ✓ Ollama モデル管理API エンドポイント追加 (/api/ollama/status, /api/ollama/pull, /api/ollama/models/:model)
+  ✓ Server-Sent Events (SSE) によるリアルタイムダウンロード進捗表示
+  ✓ 設定ページにモデル管理UI実装（推奨モデル表示、ワンクリックダウンロード、進捗バー）
+  ✓ 自動接続確認とモデル一覧取得機能
+  ✓ tinymistral, mxbai-embed-large, llama3.2:3b の推奨モデル設定
+  ✓ モデル削除機能とインストール状況表示
+  ✓ ユーザーがボタンクリックだけでローカルLLMセットアップ完了可能に
 
 ## User Preferences
 

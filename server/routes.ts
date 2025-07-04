@@ -533,6 +533,102 @@ ${contextData}
     }
   });
 
+  // Ollama model management endpoints
+  app.get("/api/ollama/status", async (req, res) => {
+    try {
+      const response = await fetch("http://localhost:11434/api/tags");
+      if (!response.ok) {
+        return res.json({ running: false, models: [] });
+      }
+      const data = await response.json();
+      res.json({ running: true, models: data.models || [] });
+    } catch (error) {
+      res.json({ running: false, models: [] });
+    }
+  });
+
+  app.post("/api/ollama/pull", async (req, res) => {
+    try {
+      const { model } = req.body;
+      if (!model) {
+        return res.status(400).json({ error: "Model name is required" });
+      }
+
+      // Set SSE headers for streaming
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+      });
+
+      const response = await fetch("http://localhost:11434/api/pull", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: model, stream: true }),
+      });
+
+      if (!response.ok) {
+        res.write(`data: ${JSON.stringify({ error: "Failed to start download" })}\n\n`);
+        res.end();
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        res.write(`data: ${JSON.stringify({ error: "No response stream" })}\n\n`);
+        res.end();
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n').filter(line => line.trim());
+          
+          for (const line of lines) {
+            try {
+              const data = JSON.parse(line);
+              res.write(`data: ${JSON.stringify(data)}\n\n`);
+            } catch (e) {
+              // Skip invalid JSON lines
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+        res.end();
+      }
+    } catch (error) {
+      res.write(`data: ${JSON.stringify({ error: (error as Error).message })}\n\n`);
+      res.end();
+    }
+  });
+
+  app.delete("/api/ollama/models/:model", async (req, res) => {
+    try {
+      const { model } = req.params;
+      const response = await fetch("http://localhost:11434/api/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: model }),
+      });
+
+      if (!response.ok) {
+        return res.status(500).json({ error: "Failed to delete model" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
