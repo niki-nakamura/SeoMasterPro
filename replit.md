@@ -214,6 +214,15 @@ The application implements a 5-step content generation process:
   ✓ tinymistral, mxbai-embed-large, llama3.2:3b の推奨モデル設定
   ✓ モデル削除機能とインストール状況表示
   ✓ ユーザーがボタンクリックだけでローカルLLMセットアップ完了可能に
+- July 5, 2025: ワンクリック起動機能＆再起動耐性の実装
+  ✓ OllamaManager クラスで cross-platform プロセス管理 (Windows/macOS/Linux対応)
+  ✓ /api/ollama/start エンドポイントで detached spawn、OLLAMA_NOPRUNE設定
+  ✓ Server-Sent Events によるリアルタイム起動進捗表示
+  ✓ 10秒間隔の自動ステータスポーリングで再接続検知
+  ✓ 設定ページに「サーバーを起動」ボタンと進捗表示を追加
+  ✓ 409 Conflict レスポンスで重複起動防止
+  ✓ バックグラウンドでサーバーを自動起動、外部ツール不要に
+  ✓ 再起動耐性とプロセス追跡機能実装完了
 
 ## User Preferences
 

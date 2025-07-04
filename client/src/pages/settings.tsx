@@ -30,6 +30,8 @@ export default function Settings() {
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{ [key: string]: DownloadProgress }>({});
+  const [isStartingOllama, setIsStartingOllama] = useState(false);
+  const [startupProgress, setStartupProgress] = useState<string>('');
   const { toast } = useToast();
 
   const recommendedModels = [
@@ -53,6 +55,85 @@ export default function Settings() {
     } catch (error) {
       setConnectionStatus('error');
       setModels([]);
+    }
+  };
+
+  const handleStartOllama = async () => {
+    try {
+      setIsStartingOllama(true);
+      setStartupProgress('サーバーを起動中...');
+      
+      const response = await fetch('/api/ollama/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.status === 409) {
+        toast({
+          title: "既に起動済み",
+          description: "Ollamaサーバーは既に起動しています",
+        });
+        await fetchOllamaStatus();
+        setIsStartingOllama(false);
+        setStartupProgress('');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to start Ollama server');
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response stream');
+      }
+
+      const decoder = new TextDecoder();
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n').filter(line => line.trim());
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                
+                if (data.message) {
+                  setStartupProgress(data.message);
+                }
+                
+                if (data.status === 'success') {
+                  toast({
+                    title: "起動完了",
+                    description: "Ollamaサーバーが正常に起動しました",
+                  });
+                  await fetchOllamaStatus();
+                } else if (data.status === 'error') {
+                  throw new Error(data.message || '起動に失敗しました');
+                }
+              } catch (e) {
+                // Skip invalid JSON
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    } catch (error) {
+      toast({
+        title: "起動エラー",
+        description: `Ollamaの起動に失敗しました: ${(error as Error).message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsStartingOllama(false);
+      setStartupProgress('');
     }
   };
 
@@ -196,7 +277,16 @@ export default function Settings() {
 
   useEffect(() => {
     fetchOllamaStatus();
-  }, []);
+    
+    // Poll Ollama status every 10 seconds
+    const pollInterval = setInterval(async () => {
+      if (!isStartingOllama) {
+        await fetchOllamaStatus();
+      }
+    }, 10000);
+
+    return () => clearInterval(pollInterval);
+  }, [isStartingOllama]);
 
   const getStatusIcon = () => {
     switch (connectionStatus) {
@@ -274,16 +364,38 @@ export default function Settings() {
                       {getStatusBadge()}
                     </div>
 
-                    {connectionStatus === 'error' && (
+                    {connectionStatus === 'error' && !isStartingOllama && (
                       <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <h4 className="font-medium text-red-800 mb-2">Ollamaが起動していない可能性があります</h4>
-                        <div className="text-sm text-red-700 space-y-1">
-                          <p>以下の手順でOllamaを起動してください：</p>
-                          <ol className="list-decimal list-inside space-y-1 ml-2">
-                            <li>Ollamaをインストール: <code className="bg-red-100 px-1 rounded">brew install ollama</code></li>
-                            <li>モデルをダウンロード: <code className="bg-red-100 px-1 rounded">ollama pull tinymistral</code></li>
-                            <li>サーバーを起動: <code className="bg-red-100 px-1 rounded">ollama serve</code></li>
-                          </ol>
+                        <h4 className="font-medium text-red-800 mb-2">ローカルLLMが動いていません</h4>
+                        <div className="text-sm text-red-700 space-y-3">
+                          <p>バックグラウンドでOllamaサーバーを自動起動できます：</p>
+                          <Button 
+                            onClick={handleStartOllama}
+                            disabled={isStartingOllama}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            <Zap className="h-4 w-4 mr-2" />
+                            サーバーを起動
+                          </Button>
+                          <div className="pt-2 border-t border-red-200">
+                            <p className="text-xs">手動起動の場合：</p>
+                            <ol className="list-decimal list-inside space-y-1 ml-2 text-xs">
+                              <li>Ollamaをインストール: <code className="bg-red-100 px-1 rounded">brew install ollama</code></li>
+                              <li>サーバーを起動: <code className="bg-red-100 px-1 rounded">ollama serve</code></li>
+                            </ol>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {isStartingOllama && (
+                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-b-transparent" />
+                          <div>
+                            <h4 className="font-medium text-blue-800">Ollamaサーバーを起動中</h4>
+                            <p className="text-sm text-blue-700">{startupProgress}</p>
+                          </div>
                         </div>
                       </div>
                     )}

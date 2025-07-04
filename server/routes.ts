@@ -533,17 +533,92 @@ ${contextData}
     }
   });
 
-  // Ollama model management endpoints
+  // Ollama management endpoints
   app.get("/api/ollama/status", async (req, res) => {
     try {
-      const response = await fetch("http://localhost:11434/api/tags");
-      if (!response.ok) {
-        return res.json({ running: false, models: [] });
-      }
-      const data = await response.json();
-      res.json({ running: true, models: data.models || [] });
+      const { ollamaManager } = await import("./services/ollama-manager");
+      const status = await ollamaManager.checkStatus();
+      res.json(status);
     } catch (error) {
       res.json({ running: false, models: [] });
+    }
+  });
+
+  app.post("/api/ollama/start", async (req, res) => {
+    try {
+      const { ollamaManager } = await import("./services/ollama-manager");
+      
+      // Check if already running
+      const status = await ollamaManager.checkStatus();
+      if (status.running) {
+        return res.status(409).json({ 
+          error: "Ollama is already running",
+          running: true,
+          pid: status.pid 
+        });
+      }
+
+      // Set SSE headers for streaming start progress
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+      });
+
+      res.write(`data: ${JSON.stringify({ status: "starting", message: "Ollamaサーバーを起動中..." })}\n\n`);
+
+      // Start Ollama
+      const result = await ollamaManager.start();
+      
+      if (result.success) {
+        res.write(`data: ${JSON.stringify({ status: "starting", message: "サーバーの準備を確認中..." })}\n\n`);
+        
+        // Wait for Ollama to be ready
+        const isReady = await ollamaManager.waitForReady(30000);
+        
+        if (isReady) {
+          const finalStatus = await ollamaManager.checkStatus();
+          res.write(`data: ${JSON.stringify({ 
+            status: "success", 
+            message: "Ollamaサーバーが正常に起動しました",
+            running: true,
+            pid: result.pid,
+            models: finalStatus.models || []
+          })}\n\n`);
+        } else {
+          res.write(`data: ${JSON.stringify({ 
+            status: "error", 
+            message: "サーバーの起動に時間がかかっています。再試行してください。"
+          })}\n\n`);
+        }
+      } else {
+        res.write(`data: ${JSON.stringify({ 
+          status: "error", 
+          message: result.error || "サーバーの起動に失敗しました"
+        })}\n\n`);
+      }
+      
+      res.end();
+    } catch (error) {
+      res.write(`data: ${JSON.stringify({ 
+        status: "error", 
+        message: `起動エラー: ${(error as Error).message}`
+      })}\n\n`);
+      res.end();
+    }
+  });
+
+  app.post("/api/ollama/stop", async (req, res) => {
+    try {
+      const { ollamaManager } = await import("./services/ollama-manager");
+      const result = await ollamaManager.stop();
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ 
+        success: false, 
+        error: (error as Error).message 
+      });
     }
   });
 
