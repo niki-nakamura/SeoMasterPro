@@ -622,6 +622,99 @@ ${contextData}
     }
   });
 
+  app.post("/api/ollama/chat", async (req, res) => {
+    try {
+      const { model = "tinymistral", messages } = req.body;
+      
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ error: "Messages array is required" });
+      }
+
+      // Check if Ollama is running and model is available
+      const { ollamaManager } = await import("./services/ollama-manager");
+      const status = await ollamaManager.checkStatus();
+      
+      if (!status.running) {
+        return res.status(503).json({ 
+          error: "Ollama server is not running",
+          action: "start_server"
+        });
+      }
+
+      const modelExists = status.models?.some(m => m.name === model);
+      if (!modelExists) {
+        return res.status(404).json({ 
+          error: `Model ${model} is not installed`,
+          requiredModel: model,
+          action: "install_model"
+        });
+      }
+
+      // Set SSE headers for streaming chat
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+      });
+
+      const response = await fetch("http://localhost:11434/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          model, 
+          messages,
+          stream: true 
+        }),
+      });
+
+      if (!response.ok) {
+        res.write(`data: ${JSON.stringify({ error: "Failed to connect to Ollama" })}\n\n`);
+        res.end();
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        res.write(`data: ${JSON.stringify({ error: "No response stream" })}\n\n`);
+        res.end();
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n').filter(line => line.trim());
+          
+          for (const line of lines) {
+            try {
+              const data = JSON.parse(line);
+              res.write(`data: ${JSON.stringify(data)}\n\n`);
+              
+              if (data.done) {
+                res.end();
+                return;
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+        res.end();
+      }
+    } catch (error) {
+      res.write(`data: ${JSON.stringify({ error: (error as Error).message })}\n\n`);
+      res.end();
+    }
+  });
+
   app.post("/api/ollama/pull", async (req, res) => {
     try {
       const { model } = req.body;

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Edit, FileText, TrendingUp, Settings, Plus } from "lucide-react";
+import { Home, Edit, FileText, TrendingUp, Settings, Plus, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navigation = [
@@ -8,6 +8,7 @@ const navigation = [
   { name: "My Articles", href: "/my-articles", icon: FileText },
   { name: "All Articles", href: "/articles", icon: FileText },
   { name: "Analytics", href: "/analytics", icon: TrendingUp },
+  { name: "Chat", href: "/chat", icon: MessageCircle },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

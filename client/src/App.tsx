@@ -11,6 +11,7 @@ import ContentGenerator from "@/pages/content-generator";
 import Articles from "@/pages/articles";
 import MyArticles from "@/pages/my-articles";
 import Settings from "@/pages/settings";
+import Chat from "@/pages/chat";
 import AuthCallback from "@/pages/auth/callback";
 import TestPage from "@/pages/test-page";
 import NotFound from "@/pages/not-found";
@@ -39,6 +40,7 @@ function Router() {
       <Route path="/articles" component={() => <AppLayout><Articles /></AppLayout>} />
       <Route path="/analytics" component={() => <AppLayout><div>Analytics coming soon...</div></AppLayout>} />
       <Route path="/settings" component={() => <AppLayout><Settings /></AppLayout>} />
+      <Route path="/chat" component={Chat} />
       <Route path="/auth/callback" component={AuthCallback} />
       <Route path="/test" component={TestPage} />
       <Route component={NotFound} />

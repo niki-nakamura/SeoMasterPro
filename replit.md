@@ -223,6 +223,15 @@ The application implements a 5-step content generation process:
   ✓ 409 Conflict レスポンスで重複起動防止
   ✓ バックグラウンドでサーバーを自動起動、外部ツール不要に
   ✓ 再起動耐性とプロセス追跡機能実装完了
+- July 5, 2025: シンプル ChatUI（動作チェック用）の実装
+  ✓ /api/ollama/chat エンドポイントでストリーミングチャット機能実装
+  ✓ Server-Sent Events (SSE) による Ollama ストリーミング応答のリアルタイム表示
+  ✓ /chat ページで TinySwallow 風の UI を実装（1列・送受信バブル型）
+  ✓ @microsoft/fetch-event-source でクライアント側 SSE 購読
+  ✓ モデル未インストール・サーバー未起動時の適切なエラーハンドリング
+  ✓ サイドバーナビゲーションにチャットページ追加
+  ✓ ワンクリックでローカルLLMとの対話開始が可能
+  ✓ ユーザーがブラウザだけでローカルLLMの動作確認を容易に実行可能
 
 ## User Preferences
 
