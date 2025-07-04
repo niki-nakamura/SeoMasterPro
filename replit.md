@@ -232,6 +232,16 @@ The application implements a 5-step content generation process:
   ✓ サイドバーナビゲーションにチャットページ追加
   ✓ ワンクリックでローカルLLMとの対話開始が可能
   ✓ ユーザーがブラウザだけでローカルLLMの動作確認を容易に実行可能
+- July 5, 2025: ワンクリック完全セットアップ（init）機能実装
+  ✓ /api/ollama/init エンドポイントで一連の自動セットアップフロー実装
+  ✓ サーバー起動 → モデル存在確認 → 不足モデル自動ダウンロード → チャット準備完了
+  ✓ Server-Sent Events (SSE) による各フェーズの進捗表示（start/pull/ready）
+  ✓ 設定ページで「サーバーを起動」ボタンからワンクリック実行
+  ✓ モデルダウンロード時のリアルタイム進捗バー表示
+  ✓ ready フェーズ時にチャット画面への自動遷移
+  ✓ チャット画面でのシステムチェックと設定ページ自動リダイレクト
+  ✓ 推奨モデル（tinymistral, mxbai-embed-large, llama3.2:3b）の自動インストール
+  ✓ ユーザーは「ボタン１つ」で完全なローカルLLM環境を構築可能
 
 ## User Preferences
 

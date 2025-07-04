@@ -10,6 +10,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { testOllamaConnection } from "@/lib/llm";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 interface OllamaModel {
   name: string;
@@ -22,6 +23,7 @@ interface DownloadProgress {
   digest?: string;
   total?: number;
   completed?: number;
+  percent?: number;
 }
 
 export default function Settings() {
@@ -32,7 +34,10 @@ export default function Settings() {
   const [downloadProgress, setDownloadProgress] = useState<{ [key: string]: DownloadProgress }>({});
   const [isStartingOllama, setIsStartingOllama] = useState(false);
   const [startupProgress, setStartupProgress] = useState<string>('');
+  const [initPhase, setInitPhase] = useState<string>('');
+  const [currentModel, setCurrentModel] = useState<string>('');
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const recommendedModels = [
     { name: 'tinymistral', description: '軽量で高速なテキスト生成モデル', size: '637MB' },
@@ -61,79 +66,115 @@ export default function Settings() {
   const handleStartOllama = async () => {
     try {
       setIsStartingOllama(true);
-      setStartupProgress('サーバーを起動中...');
+      setStartupProgress('初期化を開始中...');
+      setInitPhase('start');
+      setCurrentModel('');
       
-      const response = await fetch('/api/ollama/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const eventSource = new EventSource('/api/ollama/init', {
+        withCredentials: false
       });
-
-      if (response.status === 409) {
+      
+      eventSource.addEventListener('phase', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          switch (data.type) {
+            case 'start':
+              setInitPhase('start');
+              setStartupProgress(data.message);
+              break;
+              
+            case 'pull':
+              setInitPhase('pull');
+              setCurrentModel(data.model || '');
+              setStartupProgress(data.message);
+              break;
+              
+            case 'ready':
+              setInitPhase('ready');
+              setStartupProgress(data.message);
+              
+              toast({
+                title: "セットアップ完了",
+                description: "Ollamaサーバーとモデルの準備が完了しました。チャット画面に移動します。",
+              });
+              
+              // Auto-redirect to chat page
+              setTimeout(() => {
+                setLocation('/chat');
+              }, 2000);
+              break;
+          }
+        } catch (e) {
+          console.error('Failed to parse phase data:', e);
+        }
+      });
+      
+      eventSource.addEventListener('error', (event) => {
+        try {
+          const data = JSON.parse((event as any).data);
+          throw new Error(data.message || 'セットアップエラー');
+        } catch (e) {
+          throw new Error('セットアップ中にエラーが発生しました');
+        }
+      });
+      
+      eventSource.onerror = (error) => {
+        eventSource.close();
         toast({
-          title: "既に起動済み",
-          description: "Ollamaサーバーは既に起動しています",
+          title: "セットアップエラー",
+          description: "セットアップ中にエラーが発生しました",
+          variant: "destructive",
         });
-        await fetchOllamaStatus();
         setIsStartingOllama(false);
         setStartupProgress('');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to start Ollama server');
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response stream');
-      }
-
-      const decoder = new TextDecoder();
+        setInitPhase('');
+        setCurrentModel('');
+      };
       
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n').filter(line => line.trim());
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                
-                if (data.message) {
-                  setStartupProgress(data.message);
-                }
-                
-                if (data.status === 'success') {
-                  toast({
-                    title: "起動完了",
-                    description: "Ollamaサーバーが正常に起動しました",
-                  });
-                  await fetchOllamaStatus();
-                } else if (data.status === 'error') {
-                  throw new Error(data.message || '起動に失敗しました');
-                }
-              } catch (e) {
-                // Skip invalid JSON
-              }
+      eventSource.onmessage = (event) => {
+        if (event.data) {
+          try {
+            const data = JSON.parse(event.data);
+            // Handle model download progress
+            if (data.status && data.total && data.completed !== undefined) {
+              const percent = Math.round((data.completed / data.total) * 100);
+              setDownloadProgress(prev => ({
+                ...prev,
+                [currentModel]: { ...data, percent }
+              }));
             }
+          } catch (e) {
+            // Handle non-JSON data
           }
         }
-      } finally {
-        reader.releaseLock();
-      }
+      };
+      
+      // Auto-close after ready phase
+      eventSource.addEventListener('phase', (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'ready') {
+          setTimeout(() => {
+            eventSource.close();
+            setIsStartingOllama(false);
+            setStartupProgress('');
+            setInitPhase('');
+            setCurrentModel('');
+            fetchOllamaStatus();
+          }, 3000);
+        }
+      });
+      
     } catch (error) {
       toast({
-        title: "起動エラー",
-        description: `Ollamaの起動に失敗しました: ${(error as Error).message}`,
+        title: "セットアップエラー",
+        description: `セットアップに失敗しました: ${(error as Error).message}`,
         variant: "destructive",
       });
-    } finally {
       setIsStartingOllama(false);
       setStartupProgress('');
+      setInitPhase('');
+      setCurrentModel('');
     }
   };
 
@@ -390,12 +431,54 @@ export default function Settings() {
 
                     {isStartingOllama && (
                       <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-b-transparent" />
-                          <div>
-                            <h4 className="font-medium text-blue-800">Ollamaサーバーを起動中</h4>
-                            <p className="text-sm text-blue-700">{startupProgress}</p>
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-b-transparent" />
+                            <div>
+                              <h4 className="font-medium text-blue-800">ワンクリックセットアップ実行中</h4>
+                              <p className="text-sm text-blue-700">{startupProgress}</p>
+                            </div>
                           </div>
+                          
+                          {/* Phase indicator */}
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className={`w-2 h-2 rounded-full ${initPhase === 'start' ? 'bg-blue-500' : initPhase === 'pull' || initPhase === 'ready' ? 'bg-green-500' : 'bg-gray-300'}`} />
+                            <span>サーバー起動</span>
+                            
+                            <div className={`w-2 h-2 rounded-full ${initPhase === 'pull' ? 'bg-blue-500' : initPhase === 'ready' ? 'bg-green-500' : 'bg-gray-300'}`} />
+                            <span>モデル取得</span>
+                            
+                            <div className={`w-2 h-2 rounded-full ${initPhase === 'ready' ? 'bg-green-500' : 'bg-gray-300'}`} />
+                            <span>準備完了</span>
+                          </div>
+                          
+                          {/* Model download progress */}
+                          {initPhase === 'pull' && currentModel && (
+                            <div className="space-y-2">
+                              <div className="text-sm text-blue-800">
+                                モデル取得中: <strong>{currentModel}</strong>
+                              </div>
+                              {downloadProgress[currentModel] && (
+                                <div className="space-y-1">
+                                  <Progress 
+                                    value={downloadProgress[currentModel].percent || 0} 
+                                    className="h-2" 
+                                  />
+                                  <div className="text-xs text-blue-600">
+                                    {downloadProgress[currentModel].status} 
+                                    {downloadProgress[currentModel].percent && ` (${downloadProgress[currentModel].percent}%)`}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Ready phase notification */}
+                          {initPhase === 'ready' && (
+                            <div className="text-sm text-green-800 bg-green-100 p-2 rounded">
+                              🎉 セットアップ完了！まもなくチャット画面に移動します...
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

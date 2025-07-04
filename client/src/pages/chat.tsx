@@ -8,7 +8,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useToast } from "@/hooks/use-toast";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -27,9 +27,11 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
   const [selectedModel, setSelectedModel] = useState("tinymistral");
+  const [isChecking, setIsChecking] = useState(true);
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortController = useRef<AbortController | null>(null);
+  const [, setLocation] = useLocation();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,6 +40,39 @@ export default function Chat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Check Ollama status on component mount
+  useEffect(() => {
+    const checkInitialStatus = async () => {
+      setIsChecking(true);
+      const status = await checkOllamaStatus();
+      
+      if (!status.running) {
+        toast({
+          title: "ローカルLLMが動作していません",
+          description: "設定ページでOllamaサーバーを起動してください",
+          variant: "destructive"
+        });
+        setTimeout(() => setLocation('/settings'), 2000);
+        return;
+      }
+      
+      const hasModel = status.models?.some((m: any) => m.name === selectedModel);
+      if (!hasModel) {
+        toast({
+          title: "必要なモデルがインストールされていません",
+          description: `設定ページで ${selectedModel} をダウンロードしてください`,
+          variant: "destructive"
+        });
+        setTimeout(() => setLocation('/settings'), 2000);
+        return;
+      }
+      
+      setIsChecking(false);
+    };
+    
+    checkInitialStatus();
+  }, [selectedModel, setLocation, toast]);
 
   const checkOllamaStatus = async () => {
     try {
@@ -206,15 +241,31 @@ export default function Chat() {
                     ローカルLLM ChatUI
                   </h1>
                   
-                  <div className="max-w-2xl mx-auto space-y-4 text-gray-700">
-                    <p>
-                      このチャットUIでは、ローカルで動作するLLMと会話することができます。
-                      外部APIは使用せず、完全にオフラインで動作します。
-                    </p>
-                    <p>
-                      PCでの利用を想定しており、最初のモデルのダウンロードが完了すれば完全オフラインで会話することが可能です。
-                    </p>
-                  </div>
+                  {isChecking ? (
+                    <div className="max-w-md mx-auto">
+                      <Card className="border-l-4 border-l-blue-500">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-b-transparent" />
+                            <div>
+                              <h4 className="font-medium text-blue-800">システムチェック中</h4>
+                              <p className="text-sm text-blue-700">Ollamaサーバーとモデルの確認中...</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  ) : (
+                    <div className="max-w-2xl mx-auto space-y-4 text-gray-700">
+                      <p>
+                        このチャットUIでは、ローカルで動作するLLMと会話することができます。
+                        外部APIは使用せず、完全にオフラインで動作します。
+                      </p>
+                      <p>
+                        PCでの利用を想定しており、最初のモデルのダウンロードが完了すれば完全オフラインで会話することが可能です。
+                      </p>
+                    </div>
+                  )}
 
                   {ollamaStatus && (
                     <div className="max-w-md mx-auto">

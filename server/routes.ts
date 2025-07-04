@@ -622,6 +622,27 @@ ${contextData}
     }
   });
 
+  app.post("/api/ollama/init", async (req, res) => {
+    try {
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "Access-Control-Allow-Origin": "*"
+      });
+
+      const { ollamaManager } = await import("./services/ollama-manager");
+      await ollamaManager.initialize(res);
+      
+      res.end();
+    } catch (error) {
+      res.write(`event: error\ndata: ${JSON.stringify({ 
+        message: `初期化エラー: ${(error as Error).message}`
+      })}\n\n`);
+      res.end();
+    }
+  });
+
   app.post("/api/ollama/chat", async (req, res) => {
     try {
       const { model = "tinymistral", messages } = req.body;

@@ -1,16 +1,21 @@
 import { spawn, ChildProcess } from "child_process";
 import { platform } from "os";
+import { Response } from "express";
 
 interface OllamaStatus {
   running: boolean;
   pid?: number;
   uptime?: number;
   models?: any[];
+  pulling?: boolean;
+  currentModel?: string;
 }
 
 class OllamaManager {
   private process: ChildProcess | null = null;
   private startTime: number | null = null;
+  private pulling: boolean = false;
+  private currentModel: string | null = null;
 
   async checkStatus(): Promise<OllamaStatus> {
     try {
@@ -27,7 +32,9 @@ class OllamaManager {
         running: true,
         pid: this.process?.pid,
         uptime,
-        models: data.models || []
+        models: data.models || [],
+        pulling: this.pulling,
+        currentModel: this.currentModel || undefined
       };
     } catch (error) {
       return { running: false };
@@ -127,6 +134,85 @@ class OllamaManager {
         success: false, 
         error: `Failed to stop Ollama: ${(error as Error).message}` 
       };
+    }
+  }
+
+  async pull(model: string, res?: Response): Promise<void> {
+    this.pulling = true;
+    this.currentModel = model;
+    
+    try {
+      const response = await fetch("http://localhost:11434/api/pull", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: model, stream: true })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to pull model: ${await response.text()}`);
+      }
+      
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No response body reader");
+      }
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = new TextDecoder().decode(value);
+        
+        // Forward the chunk to the client if response object is provided
+        if (res) {
+          res.write(`data: ${chunk}\n\n`);
+        }
+      }
+    } finally {
+      this.pulling = false;
+      this.currentModel = null;
+    }
+  }
+
+  async initialize(res?: Response): Promise<void> {
+    const recommendedModels = ["tinymistral", "mxbai-embed-large", "llama3.2:3b"];
+    
+    // Phase 1: Start server
+    if (res) {
+      res.write('event: phase\ndata: {"type":"start","message":"Starting Ollama server..."}\n\n');
+    }
+    
+    const status = await this.checkStatus();
+    if (!status.running) {
+      const startResult = await this.start();
+      if (!startResult.success) {
+        throw new Error(startResult.error || "Failed to start Ollama server");
+      }
+      
+      // Wait for server to be ready
+      const ready = await this.waitForReady();
+      if (!ready) {
+        throw new Error("Ollama server failed to become ready");
+      }
+    }
+    
+    // Phase 2: Check models and pull missing ones
+    const currentStatus = await this.checkStatus();
+    const installedModels = currentStatus.models?.map((m: any) => m.name) || [];
+    
+    for (const model of recommendedModels) {
+      if (!installedModels.includes(model)) {
+        if (res) {
+          res.write(`event: phase\ndata: {"type":"pull","model":"${model}","message":"Downloading ${model}..."}\n\n`);
+        }
+        
+        await this.pull(model, res);
+      }
+    }
+    
+    // Phase 3: Ready
+    if (res) {
+      res.write('event: phase\ndata: {"type":"ready","message":"Setup complete!"}\n\n');
     }
   }
 

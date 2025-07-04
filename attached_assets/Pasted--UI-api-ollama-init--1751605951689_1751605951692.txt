@@ -1,0 +1,116 @@
+🛠️ タスク: “ワンクリック完全セットアップ” フローの実装
+目的
+今の UI はサーバー起動後にモデルが無いと “停止中” 表示のままになる。
+/api/ollama/init エンドポイントを新設し、
+
+サーバープロセスを起動（既存 /api/ollama/start を内部呼び出し）
+
+モデル存在を確認（GET /api/tags）
+
+不足モデルを自動 POST /api/pull で取得
+
+チャット UI に ストリーム進捗 を中継（SSE）
+— までを 一続きのSSE で行うことで、ユーザーはボタン１回で待つだけにする。
+
+実装仕様 (Back‑End)
+
+server/services/ollama-manager.ts
+
+pull(model: string) を追加。
+
+ts
+Copy
+async pull(model: string, res?: Response) {
+  const r = await fetch(`http://127.0.0.1:11434/api/pull`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: model, stream: true })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  for await (const chunk of r.body!) {
+    res?.write(`data: ${chunk.toString()}\n\n`);
+  }
+}
+/api/pull はモデル取得＋進捗 JSON をストリームする正式エンドポイント 
+notes.kodekloud.com
+llamafactory.cn
+
+POST /api/ollama/init
+
+クライアントとは SSE (Content-Type: text/event-stream) で通信。
+
+流れ
+
+start … 既に稼働ならスキップ（409）
+
+tags … 未インストールモデルを洗い出し
+
+pull … recommendedModels = ["tinymistral","mxbai-embed-large","llama3.2:3b"] を順番に  await pull()
+
+ready … すべて OK で {"status":"ready"} を送信して終了
+
+各フェーズで res.write('event: phase\ndata: {...}\n\n') を送る。
+
+/api/ollama/status で pulling:true/false と currentModel を返すよう拡張し、UI 側のローディング制御に利用。
+
+実装仕様 (Front‑End)
+
+設定ページ
+
+「サーバーを起動」ボタン → /api/ollama/init を EventSource で購読。
+
+phase:pull を受け取ったらモデル名と進捗バーを表示 (completed/total で計算)。
+進捗 JSON の例は Medium 記事参照 
+medium.com
+youtube.com
+
+phase:ready を受信したら自動で /chat ページへ遷移。
+
+ChatUI
+
+画面ロード時に /api/ollama/status を確認し、running && models.includes(selectedModel) でない場合は設定ページへリダイレクト。
+
+送信後 fetchEventSource('/api/ollama/chat', …) で SSE を流し込み（実装済）。
+
+UI/UX 細部
+
+プログレス表示は <Progress value={percent} /> を再利用、phase:start 時はスピナーのみ。
+
+エラー SSE (event:error) を受信したらトーストを出し、ボタンを再度活性化。
+
+テスト項目
+
+ケース	期待結果
+Ollama 未起動・モデル無し	ボタン→ init SSE→ サーバー起動→ モデル 3 つ順次ダウンロード→ ready→ /chat 自動遷移→ “Hello” 応答
+サーバー停止中・モデル有り	ボタン→ start→ ready→ /chat 遷移 (ダウンロードスキップ)
+既に稼働・モデル完備	設定ページで “接続済み” 緑バッジ→ /chat 直接利用可
+
+技術的ヒント / 外部リソース
+
+Ollama /api/tags でインストール済みモデルが取れる 
+github.com
+
+/api/pull は stream:true を付けると JSON チャンクで進捗が届く 
+notes.kodekloud.com
+medium.com
+
+ストリームを Node からそのまま res にパイプする方法は公式サンプル参照 
+ollama.readthedocs.io
+
+fetch-event-source の React 用パターンは LogRocket 記事が分かりやすい 
+notes.kodekloud.com
+
+detached spawn は cross‑platform に shell:true が安全 
+gpu-mart.com
+
+ドキュメント更新
+
+replit.md に “ワンクリック完全セットアップ (init) 実装” を追記。
+
+README Quick‑Start を以下の３行で置き換え：
+
+sh
+Copy
+# 1. ローカルで Ollama をインストール
+# 2. アプリ起動 → Settings → 「サーバーを起動」ボタン
+# 3. /chat で会話を開始（初回はモデル自動DL）
