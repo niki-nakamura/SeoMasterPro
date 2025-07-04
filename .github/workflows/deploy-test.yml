@@ -1,0 +1,109 @@
+name: Deployment Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-basic:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: seo_master_pro
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Setup environment
+      run: |
+        cp .env.example .env
+        echo "DATABASE_URL=postgres://postgres:postgres@localhost:5432/seo_master_pro" >> .env
+        echo "LITE_MODE=true" >> .env
+        echo "NODE_ENV=test" >> .env
+    
+    - name: Run database migrations
+      run: npm run db:push
+    
+    - name: Build application
+      run: npm run build
+    
+    - name: Start application in background
+      run: |
+        npm start &
+        sleep 10
+      env:
+        NODE_ENV: production
+        LITE_MODE: true
+    
+    - name: Run basic smoke tests
+      run: node scripts/verify-deployment.js
+      env:
+        LITE_MODE: true
+        NODE_ENV: production
+    
+    - name: Run E2E tests
+      run: bash scripts/e2e.sh
+      timeout-minutes: 5
+
+  test-docker:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build Docker image
+      run: docker-compose build
+    
+    - name: Start services
+      run: docker-compose up -d
+    
+    - name: Wait for services
+      run: |
+        echo "Waiting for application to be ready..."
+        timeout 60 bash -c 'until curl -f http://localhost:5000/api/health; do sleep 5; done'
+    
+    - name: Run health check
+      run: |
+        response=$(curl -s http://localhost:5000/api/health)
+        echo "Health check response: $response"
+        
+        if echo "$response" | grep -q '"status":"healthy"'; then
+          echo "✅ Docker deployment healthy"
+        else
+          echo "❌ Docker deployment unhealthy"
+          exit 1
+        fi
+    
+    - name: Test API endpoints
+      run: |
+        # Test main endpoints
+        curl -f http://localhost:5000/api/articles
+        curl -f http://localhost:5000/api/ollama/status
+        curl -f http://localhost:5000/
+        
+        echo "✅ All API endpoints responding"
+    
+    - name: Cleanup
+      run: docker-compose down -v

@@ -251,6 +251,15 @@ The application implements a 5-step content generation process:
   ✓ 設定画面でモード別の説明表示（Replit軽量モード vs フルモード）
   ✓ README.md に Cloud/Docker/Local の3つのデプロイ方法追記
   ✓ Production環境でのストレージ最適化とモデル永続化対応
+- July 5, 2025: 最終デプロイ手順確認 & 自動検証フロー実装
+  ✓ デプロイ検証スクリプト scripts/verify-deployment.js 実装（成功/失敗判定）
+  ✓ E2E テストスクリプト scripts/e2e.sh 実装（全API エンドポイント検証）
+  ✓ 設定画面にデプロイモード情報カード追加（Replit軽量 vs フル モード）
+  ✓ README.md にステップバイステップ デプロイ手順追加
+  ✓ GitHub Actions ワークフロー作成（基本テスト + Docker テスト）
+  ✓ Replit デプロイ: Fork → Deploy → /settings → 「サーバーを起動」→ /chat
+  ✓ 1-2分で完全セットアップ、月額$1.4の低コスト運用
+  ✓ ワンクリック デプロイ & 自動検証システム完成
 
 ## User Preferences
 

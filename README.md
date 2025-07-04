@@ -15,19 +15,72 @@ AI-powered SEO content generation application with local LLM support.
 
 ## Quick Start
 
-### Cloud Deployment (Replit)
-1. Fork the project on Replit
-2. Lite mode is enabled by default (tinymistral only, ~340MB)
-3. Go to Settings page → Click "サーバーを起動" button
-4. Automatic model download and chat setup
+### 🚀 Cloud Deployment (Replit) - Recommended
+**Zero-cost local LLM deployment with automatic setup**
 
-### Self-Hosted Docker (Full Models)
-1. Clone the repository
-2. Run full model stack:
-```bash
-docker-compose up --build
-```
-This includes all models (requires 8GB+ storage for complete setup)
+1. **Fork or Import to Replit**
+   - Visit the project on Replit
+   - Click "Fork" or "Import to Replit"
+
+2. **Deploy to Autoscale**
+   - Click "Run" → "Deploy" → "Autoscale"
+   - Select: 1 CPU / 1 GB RAM (sufficient for lite mode)
+   - Deploy will take 2-3 minutes
+
+3. **One-Click Setup**
+   - Navigate to `/settings` page
+   - Click "サーバーを起動" button
+   - Wait 1-2 minutes for tinymistral download (340MB)
+   - Green badge indicates ready status
+
+4. **Start Chatting**
+   - Navigate to `/chat` page
+   - Send "Hello" message
+   - Get response from local LLM
+
+**Cost: ~$1.4/month (database only)**
+
+### 🐳 Self-Hosted Docker (Full Models)
+**Complete model stack for maximum quality**
+
+1. **Clone and Run**
+   ```bash
+   git clone <repo-url>
+   cd seo-master-pro
+   docker-compose up --build
+   ```
+
+2. **Access Application**
+   - Open http://localhost:5000
+   - All models download automatically (~3.5GB)
+   - Full feature set available
+
+**Requirements: 8GB+ storage, 4GB+ RAM**
+
+### 💻 Local Development
+**Development environment setup**
+
+1. **Prerequisites**
+   ```bash
+   # Install Ollama
+   curl -fsSL https://ollama.ai/install.sh | sh
+   
+   # Install dependencies
+   npm install
+   ```
+
+2. **Environment Setup**
+   ```bash
+   cp .env.example .env
+   # Configure DATABASE_URL and other variables
+   ```
+
+3. **Start Development**
+   ```bash
+   npm run dev
+   ```
+
+**Note: Use local PostgreSQL or Neon database**
 
 ### Local Development
 1. Install dependencies:

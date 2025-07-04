@@ -42,9 +42,11 @@ async function testEndpoints() {
       console.log(`     Lite mode: ${health.environment?.liteMode}`);
     } else {
       console.log('  ❌ Health endpoint: Failed');
+      return false;
     }
   } catch (error) {
     console.log('  ⚠️  Health endpoint: Server not running');
+    return false;
   }
 
   try {
@@ -54,26 +56,50 @@ async function testEndpoints() {
       console.log('  ✅ Ollama status endpoint: OK');
       console.log(`     Server running: ${status.running}`);
       console.log(`     Models available: ${status.models?.length || 0}`);
+      
+      // Check for tinymistral model in lite mode
+      if (liteMode && status.running && status.models) {
+        const hasTinymistral = status.models.some(m => m.name === 'tinymistral');
+        if (hasTinymistral) {
+          console.log('  ✅ Tinymistral model: Available');
+          return true;
+        } else {
+          console.log('  ⚠️  Tinymistral model: Not found');
+          return false;
+        }
+      }
+      
+      return status.running;
     } else {
       console.log('  ❌ Ollama status endpoint: Failed');
+      return false;
     }
   } catch (error) {
     console.log('  ⚠️  Ollama status endpoint: Server not running');
+    return false;
   }
 }
 
 // Run tests
-testEndpoints().then(() => {
+testEndpoints().then((success) => {
   console.log('\n🎯 Deployment Verification Complete');
-  console.log('\nFor Replit deployment:');
-  console.log('  1. Ensure LITE_MODE=true in environment');
-  console.log('  2. Go to Settings → Click "サーバーを起動"');
-  console.log('  3. Wait for tinymistral download (340MB)');
-  console.log('  4. Navigate to /chat for testing');
+  console.log(`Status: ${success ? 'READY' : 'NEEDS SETUP'}`);
   
-  console.log('\nFor Docker deployment:');
-  console.log('  1. Set LITE_MODE=false');
-  console.log('  2. Run: docker-compose up --build');
-  console.log('  3. Wait for all models download (~3.5GB)');
-  console.log('  4. Access via http://localhost:5000');
+  if (!success) {
+    console.log('\nFor Replit deployment:');
+    console.log('  1. Go to Settings → Click "サーバーを起動"');
+    console.log('  2. Wait for tinymistral download (340MB)');
+    console.log('  3. Navigate to /chat for testing');
+    console.log('  4. Run: npm run verify to check status');
+    
+    console.log('\nFor Docker deployment:');
+    console.log('  1. Set LITE_MODE=false');
+    console.log('  2. Run: docker-compose up --build');
+    console.log('  3. Wait for all models download (~3.5GB)');
+    console.log('  4. Access via http://localhost:5000');
+  } else {
+    console.log('\n✅ System ready! Navigate to /chat to start chatting');
+  }
+  
+  process.exit(success ? 0 : 1);
 });

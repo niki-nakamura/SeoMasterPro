@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, XCircle, Settings as SettingsIcon, Zap, Download, Trash2 } from "lucide-react";
+import { CheckCircle, XCircle, Settings as SettingsIcon, Zap, Download, Trash2, Server } from "lucide-react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { testOllamaConnection } from "@/lib/llm";
@@ -374,6 +374,44 @@ export default function Settings() {
               </div>
 
               <div className="space-y-6">
+                {/* デプロイモード情報 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Server className="h-5 w-5" />
+                      デプロイモード
+                    </CardTitle>
+                    <CardDescription>
+                      現在のデプロイメント設定と利用可能なモデル
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className={`p-4 rounded-lg border-2 ${isLiteMode ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <h4 className="font-medium text-green-800 mb-2">
+                          🔋 Replit軽量モード {isLiteMode && <Badge variant="default">現在</Badge>}
+                        </h4>
+                        <div className="text-sm text-green-700 space-y-1">
+                          <p>• tinymistralのみ（340MB）</p>
+                          <p>• 1-2分で自動セットアップ</p>
+                          <p>• 月額コスト: ~$1.4（DB のみ）</p>
+                        </div>
+                      </div>
+                      
+                      <div className={`p-4 rounded-lg border-2 ${!isLiteMode ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <h4 className="font-medium text-blue-800 mb-2">
+                          🚀 フルモード {!isLiteMode && <Badge variant="default">現在</Badge>}
+                        </h4>
+                        <div className="text-sm text-blue-700 space-y-1">
+                          <p>• 全モデル対応（3.5GB）</p>
+                          <p>• Docker/self-host 推奨</p>
+                          <p>• 高品質なコンテンツ生成</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* ローカルLLM設定 */}
                 <Card>
                   <CardHeader>
@@ -383,8 +421,8 @@ export default function Settings() {
                     </CardTitle>
                     <CardDescription>
                       {isLiteMode 
-                        ? "Replitでは軽量モード（tinymistralのみ自動DL、340MB）でサーバーコストを削減"
-                        : "Ollamaを使用してローカルPC上でLLMを動作させることで、サーバーコストを削減できます"}
+                        ? "Replitデプロイは軽量モード（tinymistralのみ自動DL、340MB）でサーバーコストを削減。「サーバーを起動」をクリックして1-2分で完了"
+                        : "フルモデルスタック（Docker/self-host）: tinymistral + mxbai-embed-large + llama3.2:3b（約3.5GB）"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
