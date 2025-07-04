@@ -273,6 +273,14 @@ For production deployment, configure CORS on your CDN:
 
 Set `MODEL_URL=https://cdn.example.com/llama3-8b-q4f16_1/` in environment variables.
 
+**Custom Model URL Setup:**
+If you want to use a different CDN or host your own model files:
+
+1. Upload the `llama3-8b-q4f16_1-MLC/` directory to your CDN/storage
+2. Set the `MODEL_URL` environment variable to your CDN URL
+3. Ensure CORS is configured to allow GET/HEAD requests from your domain
+4. For Replit: Add `MODEL_URL=https://your-cdn.com/llama3-8b-q4f16_1/` to Secrets
+
 ### Ollama Server Fallback (tinymistral)
 **Automatic fallback for non-WebGPU browsers**
 

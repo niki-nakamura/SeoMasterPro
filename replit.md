@@ -269,6 +269,13 @@ The application implements a 5-step content generation process:
   ✓ 現在のLLMモード表示（WebGPU推論 vs Ollama推論）
   ✓ LITE_MODE でも WebGPU 環境なら高性能 Llama 3 推論利用可能
   ✓ 外部API コスト完全ゼロ・最適パフォーマンス自動選択システム完成
+- July 5, 2025: 最終デプロイ準備 - CDN & SSE 最適化完了
+  ✓ WebLLM model.json に CDN URL 設定（https://cdn.example.com/llama3-8b-q4f16_1/）
+  ✓ 全SSE エンドポイントで res.flushHeaders() 必須設定完了
+  ✓ MODEL_URL 環境変数設定（.env.example & Replit Secrets 対応）
+  ✓ Express ルート順序確認（SSE endpoints → static serving の正しい順序）
+  ✓ README に CORS 設定手順とカスタム CDN URL 設定方法追加
+  ✓ 完全な WebGPU/Ollama デュアルモード システムデプロイ準備完了
 
 ## User Preferences
 
