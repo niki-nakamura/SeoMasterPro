@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, XCircle, Settings as SettingsIcon, Zap, Download, Trash2, Server } from "lucide-react";
+import { CheckCircle, XCircle, Settings as SettingsIcon, Zap, Download, Trash2, Server, Monitor, Cpu } from "lucide-react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { testOllamaConnection } from "@/lib/llm";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { isWebGPUSupported, initWebLLM, isWebLLMReady, WebLLMProgress } from "@/lib/webllm";
 
 interface OllamaModel {
   name: string;
@@ -36,6 +37,10 @@ export default function Settings() {
   const [startupProgress, setStartupProgress] = useState<string>('');
   const [initPhase, setInitPhase] = useState<string>('');
   const [currentModel, setCurrentModel] = useState<string>('');
+  const [webGPUSupported, setWebGPUSupported] = useState<boolean>(false);
+  const [webLLMProgress, setWebLLMProgress] = useState<number>(0);
+  const [isInitializingWebLLM, setIsInitializingWebLLM] = useState(false);
+  const [llmMode, setLLMMode] = useState<'webgpu' | 'ollama' | 'auto'>('auto');
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
@@ -66,6 +71,71 @@ export default function Settings() {
     }
   };
 
+  // New unified LLM startup function with WebGPU detection
+  const handleStartLLM = async () => {
+    // Auto-detect mode if set to auto
+    let selectedMode = llmMode;
+    if (llmMode === 'auto') {
+      selectedMode = webGPUSupported ? 'webgpu' : 'ollama';
+    }
+
+    if (selectedMode === 'webgpu') {
+      await handleStartWebLLM();
+    } else {
+      await handleStartOllama();
+    }
+  };
+
+  // WebLLM initialization
+  const handleStartWebLLM = async () => {
+    if (!webGPUSupported) {
+      toast({
+        title: "WebGPU未対応",
+        description: "お使いのブラウザはWebGPUに対応していません。Ollamaモードに切り替えます。",
+        variant: "destructive",
+      });
+      await handleStartOllama();
+      return;
+    }
+
+    setIsInitializingWebLLM(true);
+    setWebLLMProgress(0);
+    setInitPhase('webllm-init');
+
+    try {
+      await initWebLLM((progress: WebLLMProgress) => {
+        setWebLLMProgress(progress.progress * 100);
+        setStartupProgress(progress.text || `Loading model... ${Math.round(progress.progress * 100)}%`);
+      });
+
+      toast({
+        title: "WebLLM準備完了",
+        description: "ブラウザ内LLMが準備完了しました。チャット画面に移動します。",
+      });
+
+      // Auto-redirect to chat
+      setTimeout(() => {
+        setLocation('/chat');
+      }, 2000);
+
+    } catch (error) {
+      console.error('WebLLM initialization failed:', error);
+      toast({
+        title: "WebLLM初期化失敗",
+        description: "Ollamaモードに切り替えます。",
+        variant: "destructive",
+      });
+      // Fallback to Ollama
+      await handleStartOllama();
+    } finally {
+      setIsInitializingWebLLM(false);
+      setWebLLMProgress(0);
+      setStartupProgress('');
+      setInitPhase('');
+    }
+  };
+
+  // Original Ollama startup function
   const handleStartOllama = async () => {
     try {
       setIsStartingOllama(true);
@@ -322,15 +392,18 @@ export default function Settings() {
   useEffect(() => {
     fetchOllamaStatus();
     
+    // Check WebGPU support on mount
+    setWebGPUSupported(isWebGPUSupported());
+    
     // Poll Ollama status every 10 seconds
     const pollInterval = setInterval(async () => {
-      if (!isStartingOllama) {
+      if (!isStartingOllama && !isInitializingWebLLM) {
         await fetchOllamaStatus();
       }
     }, 10000);
 
     return () => clearInterval(pollInterval);
-  }, [isStartingOllama]);
+  }, [isStartingOllama, isInitializingWebLLM]);
 
   const getStatusIcon = () => {
     switch (connectionStatus) {
@@ -412,6 +485,46 @@ export default function Settings() {
                   </CardContent>
                 </Card>
 
+                {/* WebGPU検出と推論モード */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Monitor className="h-5 w-5" />
+                      推論モード選択
+                    </CardTitle>
+                    <CardDescription>
+                      WebGPU対応ブラウザでは自動的にブラウザ内推論を選択します
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className={`p-4 rounded-lg border-2 ${webGPUSupported ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <h4 className="font-medium text-blue-800 mb-2">
+                          🌐 WebGPU ブラウザ推論 {webGPUSupported && <Badge variant="default">対応</Badge>}
+                        </h4>
+                        <div className="text-sm text-blue-700 space-y-1">
+                          <p>• ブラウザ内で完結（プライベート）</p>
+                          <p>• 軽量モデル（TinyLlama 1.1B）</p>
+                          <p>• WebGPU必須</p>
+                          <p>• 状態: {webGPUSupported ? '✅ 利用可能' : '❌ 未対応'}</p>
+                        </div>
+                      </div>
+                      
+                      <div className={`p-4 rounded-lg border-2 ${!webGPUSupported ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <h4 className="font-medium text-green-800 mb-2">
+                          🖥️ Ollama サーバー推論 {!webGPUSupported && <Badge variant="default">フォールバック</Badge>}
+                        </h4>
+                        <div className="text-sm text-green-700 space-y-1">
+                          <p>• サーバーサイド推論</p>
+                          <p>• tinymistral（340MB）</p>
+                          <p>• 全ブラウザ対応</p>
+                          <p>• 状態: {connectionStatus === 'success' ? '✅ 接続済み' : '⚠️ 未接続'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* ローカルLLM設定 */}
                 <Card>
                   <CardHeader>
@@ -420,9 +533,7 @@ export default function Settings() {
                       ローカルLLM設定
                     </CardTitle>
                     <CardDescription>
-                      {isLiteMode 
-                        ? "Replitデプロイは軽量モード（tinymistralのみ自動DL、340MB）でサーバーコストを削減。「サーバーを起動」をクリックして1-2分で完了"
-                        : "フルモデルスタック（Docker/self-host）: tinymistral + mxbai-embed-large + llama3.2:3b（約3.5GB）"}
+                      自動モード: WebGPU対応ブラウザ → ブラウザ推論、非対応 → Ollama推論
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -448,18 +559,22 @@ export default function Settings() {
                       {getStatusBadge()}
                     </div>
 
-                    {connectionStatus === 'error' && !isStartingOllama && (
-                      <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <h4 className="font-medium text-red-800 mb-2">ローカルLLMが動いていません</h4>
-                        <div className="text-sm text-red-700 space-y-3">
-                          <p>バックグラウンドでOllamaサーバーを自動起動できます：</p>
+                    {(connectionStatus === 'error' || !isWebLLMReady()) && !isStartingOllama && !isInitializingWebLLM && (
+                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 className="font-medium text-blue-800 mb-2">ローカルLLMを起動</h4>
+                        <div className="text-sm text-blue-700 space-y-3">
+                          <p>
+                            {webGPUSupported 
+                              ? "WebGPU対応ブラウザです。ブラウザ内推論を開始します。" 
+                              : "Ollamaサーバーをバックグラウンドで自動起動します。"}
+                          </p>
                           <Button 
-                            onClick={handleStartOllama}
-                            disabled={isStartingOllama}
-                            className="bg-red-600 hover:bg-red-700 text-white"
+                            onClick={handleStartLLM}
+                            disabled={isStartingOllama || isInitializingWebLLM}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
                           >
-                            <Zap className="h-4 w-4 mr-2" />
-                            サーバーを起動
+                            {webGPUSupported ? <Monitor className="h-4 w-4 mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
+                            ローカルLLMを起動
                           </Button>
                           <div className="pt-2 border-t border-red-200">
                             <p className="text-xs">手動起動の場合：</p>
@@ -472,11 +587,42 @@ export default function Settings() {
                       </div>
                     )}
 
-                    {isStartingOllama && (
+                    {/* WebLLM Progress */}
+                    {isInitializingWebLLM && (
                       <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="space-y-4">
                           <div className="flex items-center gap-3">
                             <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-b-transparent" />
+                            <span className="font-medium text-blue-700">WebLLM初期化中...</span>
+                          </div>
+                          
+                          {webLLMProgress > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm text-blue-600">
+                                <span>モデルダウンロード進捗</span>
+                                <span>{Math.round(webLLMProgress)}%</span>
+                              </div>
+                              <Progress value={webLLMProgress} className="h-2" />
+                            </div>
+                          )}
+                          
+                          {startupProgress && (
+                            <p className="text-sm text-blue-600">{startupProgress}</p>
+                          )}
+                          
+                          <p className="text-xs text-blue-500">
+                            初回セットアップ時はモデルダウンロードのため時間がかかります（TinyLlama 1.1B）
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ollama Progress */}
+                    {isStartingOllama && (
+                      <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-500 border-b-transparent" />
                             <div>
                               <h4 className="font-medium text-blue-800">ワンクリックセットアップ実行中</h4>
                               <p className="text-sm text-blue-700">{startupProgress}</p>

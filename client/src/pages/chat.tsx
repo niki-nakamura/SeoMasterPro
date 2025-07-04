@@ -3,12 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Send, Settings, Zap, Download } from "lucide-react";
+import { MessageCircle, Send, Settings, Zap, Download, Monitor, Cpu } from "lucide-react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useToast } from "@/hooks/use-toast";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { Link, useLocation } from "wouter";
+import { isWebGPUSupported, isWebLLMReady, generateWithWebLLM } from "@/lib/webllm";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -28,6 +29,8 @@ export default function Chat() {
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
   const [selectedModel, setSelectedModel] = useState("tinymistral");
   const [isChecking, setIsChecking] = useState(true);
+  const [webGPUSupported, setWebGPUSupported] = useState<boolean>(false);
+  const [currentLLMMode, setCurrentLLMMode] = useState<'webgpu' | 'ollama' | 'none'>('none');
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortController = useRef<AbortController | null>(null);
@@ -41,13 +44,34 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
-  // Check Ollama status on component mount
+  // Check LLM status (both WebLLM and Ollama) on component mount
   useEffect(() => {
     const checkInitialStatus = async () => {
       setIsChecking(true);
-      const status = await checkOllamaStatus();
       
-      if (!status.running) {
+      // Check WebGPU support
+      const webGPUAvailable = isWebGPUSupported();
+      setWebGPUSupported(webGPUAvailable);
+      
+      // Check WebLLM readiness
+      const webLLMReady = isWebLLMReady();
+      
+      // Check Ollama status
+      const ollamaStatus = await checkOllamaStatus();
+      
+      // Determine current LLM mode
+      if (webLLMReady) {
+        setCurrentLLMMode('webgpu');
+        setIsStarted(true);
+      } else if (ollamaStatus.running && ollamaStatus.models?.some((m: any) => m.name === 'tinymistral')) {
+        setCurrentLLMMode('ollama');
+        setIsStarted(true);
+      } else {
+        setCurrentLLMMode('none');
+        setIsStarted(false);
+      }
+      
+      if (!webLLMReady && !ollamaStatus.running) {
         toast({
           title: "ローカルLLMが動作していません",
           description: "設定ページでOllamaサーバーを起動してください",
@@ -130,6 +154,49 @@ export default function Chat() {
     ];
     setMessages(newMessages);
 
+    try {
+      if (currentLLMMode === 'webgpu') {
+        // Use WebLLM for browser-based inference
+        await handleWebLLMGeneration(newMessages);
+      } else if (currentLLMMode === 'ollama') {
+        // Use Ollama for server-based inference
+        await handleOllamaGeneration(newMessages);
+      } else {
+        throw new Error("No LLM mode available");
+      }
+    } catch (error) {
+      console.error("Message generation failed:", error);
+      toast({
+        title: "エラー",
+        description: "メッセージの生成に失敗しました",
+        variant: "destructive",
+      });
+      // Remove the user message if generation failed
+      setMessages(messages);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // WebLLM generation function
+  const handleWebLLMGeneration = async (newMessages: Message[]) => {
+    // Add empty assistant message for streaming
+    const assistantMessageIndex = newMessages.length;
+    setMessages([...newMessages, { role: "assistant", content: "" }]);
+
+    try {
+      const response = await generateWithWebLLM(newMessages);
+      
+      // Update the assistant message with the complete response
+      setMessages([...newMessages, { role: "assistant", content: response }]);
+    } catch (error) {
+      console.error("WebLLM generation failed:", error);
+      throw error;
+    }
+  };
+
+  // Ollama generation function
+  const handleOllamaGeneration = async (newMessages: Message[]) => {
     // Add empty assistant message for streaming
     const assistantMessageIndex = newMessages.length;
     setMessages([...newMessages, { role: "assistant", content: "" }]);
@@ -267,27 +334,54 @@ export default function Chat() {
                     </div>
                   )}
 
-                  {ollamaStatus && (
-                    <div className="max-w-md mx-auto">
-                      <Card className="border-l-4 border-l-blue-500">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">Ollamaサーバー</span>
-                            <Badge variant={ollamaStatus.running ? "default" : "destructive"}>
-                              {ollamaStatus.running ? "起動中" : "停止中"}
-                            </Badge>
+                  {/* LLM Mode Status Display */}
+                  <div className="max-w-md mx-auto space-y-3">
+                    {/* WebGPU Status */}
+                    <Card className="border-l-4 border-l-blue-500">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Monitor className="h-4 w-4" />
+                            <span className="font-medium">WebGPU ブラウザ推論</span>
                           </div>
-                          <div className="text-sm text-gray-600">
-                            {ollamaStatus.running ? (
-                              <span>利用可能モデル: {ollamaStatus.models?.length || 0}個</span>
-                            ) : (
-                              <span>設定ページでサーバーを起動してください</span>
-                            )}
+                          <Badge variant={webGPUSupported ? "default" : "outline"}>
+                            {webGPUSupported ? "対応" : "未対応"}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {isWebLLMReady() ? (
+                            <span className="text-green-600">✅ 利用可能（TinyLlama 1.1B）</span>
+                          ) : webGPUSupported ? (
+                            <span className="text-orange-600">⚠️ 初期化が必要</span>
+                          ) : (
+                            <span className="text-gray-500">ブラウザが非対応</span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Ollama Status */}
+                    <Card className="border-l-4 border-l-green-500">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Cpu className="h-4 w-4" />
+                            <span className="font-medium">Ollama サーバー推論</span>
                           </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
+                          <Badge variant={ollamaStatus?.running ? "default" : "destructive"}>
+                            {ollamaStatus?.running ? "起動中" : "停止中"}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {ollamaStatus?.running ? (
+                            <span className="text-green-600">✅ 利用可能モデル: {ollamaStatus.models?.length || 0}個</span>
+                          ) : (
+                            <span>設定ページでサーバーを起動してください</span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -315,7 +409,21 @@ export default function Chat() {
                 <div className="flex items-center justify-between mb-6">
                   <h1 className="text-2xl font-bold text-gray-900">チャット</h1>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline">{selectedModel}</Badge>
+                    {/* Current LLM Mode Indicator */}
+                    {currentLLMMode === 'webgpu' ? (
+                      <Badge variant="default" className="bg-blue-100 text-blue-800">
+                        <Monitor className="h-3 w-3 mr-1" />
+                        WebGPU推論
+                      </Badge>
+                    ) : currentLLMMode === 'ollama' ? (
+                      <Badge variant="default" className="bg-green-100 text-green-800">
+                        <Cpu className="h-3 w-3 mr-1" />
+                        Ollama ({selectedModel})
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">推論モード未設定</Badge>
+                    )}
+                    
                     <Link href="/settings">
                       <Button variant="outline" size="sm">
                         <Settings className="h-4 w-4" />

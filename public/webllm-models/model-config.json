@@ -1,0 +1,16 @@
+{
+  "model_list": [
+    {
+      "model_id": "tinymistral-q4f32-1k",
+      "model": "tinymistral-q4f32-1k",
+      "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-libs/",
+      "model_url": "/webllm-models/tinymistral-q4f32-1k/",
+      "vram_required_MB": 1024,
+      "low_resource_required": true,
+      "buffer_size_required_bytes": 262144000
+    }
+  ],
+  "model_lib_map": {
+    "tinymistral-q4f32-1k": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-libs/tinymistral-q4f32-1k-webgpu.wasm"
+  }
+}
