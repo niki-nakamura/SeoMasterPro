@@ -85,19 +85,11 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     data: {} 
   }),
 
-  // Local LLM generation with scraped content context
+  // WebLLM generation with vector search context
   generateWithLocalLLM: async (prompt: string, useScrapedData = true) => {
     const { data } = get();
-    let scrapedContent: string[] = [];
     
-    if (useScrapedData && data.scrapeData?.results) {
-      scrapedContent = data.scrapeData.results
-        .filter(result => result.content)
-        .map(result => `タイトル: ${result.title}\n内容: ${result.content}`)
-        .slice(0, 7); // 最大7記事のコンテンツを使用
-    }
-
-    // H2-WRITE前にpgvector TOP-k検索でLLMコンテキストを取得
+    // pgvector TOP-k検索でコンテキストを取得
     let contextText = '';
     if (data.scrapeData?.keyword) {
       try {
@@ -130,37 +122,17 @@ ${prompt}
     }
     
     try {
-      const { generateWithLocalLLM } = await import('@/lib/llm');
-      return await generateWithLocalLLM({
-        prompt: enhancedPrompt,
-        scrapedContent,
-        model: 'tinymistral',
-        keyword: data.scrapeData?.keyword
-      });
-    } catch (error) {
-      console.error('Local LLM generation failed:', error);
-      // フォールバック：サーバー経由でベクトル検索コンテキスト付き生成
-      try {
-        const keyword = data.scrapeData?.keyword || '';
-        const response = await fetch('/proxy/llm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt,
-            model: 'tinymistral',
-            useContext: true,
-            keyword
-          })
-        });
-        
-        if (!response.ok) throw new Error('Server LLM fallback failed');
-        
-        const result = await response.json();
-        return result.text;
-      } catch (fallbackError) {
-        console.error('Server LLM fallback also failed:', fallbackError);
-        throw error; // 元のエラーを返す
+      // WebLLM を使用してブラウザ内で生成
+      const { generateWithWebLLM, isWebLLMReady } = await import('@/lib/webllm');
+      
+      if (!isWebLLMReady()) {
+        throw new Error('WebLLM is not initialized. Please initialize Llama 3 8B in settings.');
       }
+      
+      return await generateWithWebLLM(enhancedPrompt);
+    } catch (error) {
+      console.error('WebLLM generation failed:', error);
+      throw new Error(`WebLLMでの生成に失敗しました: ${(error as Error).message}`);
     }
   },
 }));
